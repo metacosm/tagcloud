@@ -48,7 +48,7 @@
         <groupId>org.jahia.modules</groupId>
         <version>6.7.0.0-SNAPSHOT</version>
     </parent>
-    <artifactId>tagcloud</artifactId>
+    <artifactId>tagCloud</artifactId>
     <name>Tagcloud module</name>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>bundle</packaging>
