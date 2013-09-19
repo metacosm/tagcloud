@@ -17,16 +17,28 @@
 <%--@elvariable id="url" type="org.jahia.services.render.URLGenerator"--%>
 <%--@elvariable id="acl" type="java.lang.String"--%>
 <%--@elvariable id="tagcloud" type="java.util.Map<String,Integer>--%>
-<template:addResources type="css" resources="tagcloud.css"/>
+<template:addResources type="css" resources="tagCloud.css"/>
 
 <c:set var="boundComponent" value="${uiComponents:getBoundComponent(currentNode, renderContext, 'j:bindedComponent')}"/>
 
 <div id="tagcloud${boundComponent.identifier}" class="tagcloud">
     <c:set var="tagcloud" value="${tagcloud:getCloud(currentNode, renderContext)}" scope="request"/>
+
+    <c:url var="postUrl" value="${url.base}${boundComponent.path}"/>
+    <script type="text/javascript">
+        function filterBoundComponentContent(tag) {
+            $.post("${postUrl}.filterFromTag.do", {"tag": tag}, function (result) {
+            }, "json");
+            return false;
+        }
+    </script>
+
     <c:choose>
         <c:when test="${not empty tagcloud}">
             <c:forEach items="${tagcloud}" var="tag" varStatus="status">
-                <span id="tag-${fn:replace(tag.key,' ','-')}" class="tag">${fn:escapeXml(tag.key)} (${tag.value})</span>
+                <span id="tag-${fn:replace(tag.key,' ','-')}" class="tag"><a href="#"
+                                                                             onclick="filterBoundComponentContent('${tag.key}')">${fn:escapeXml(tag.key)}
+                    (${tag.value})</a></span>
             </c:forEach>
         </c:when>
         <c:otherwise>
