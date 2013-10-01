@@ -40,18 +40,14 @@
 
 package org.jahia.taglibs.tagcloud;
 
-import org.jahia.services.content.JCRNodeWrapper;
-import org.jahia.services.content.JCRPropertyWrapper;
-import org.jahia.services.content.JCRSessionWrapper;
-import org.jahia.services.content.JCRValueWrapper;
+import org.jahia.services.content.*;
 import org.jahia.services.query.QOMBuilder;
 import org.jahia.services.query.QueryResultWrapper;
 import org.jahia.services.render.RenderContext;
 import org.jahia.taglibs.uicomponents.Functions;
 
-import javax.jcr.NodeIterator;
+import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
-import javax.jcr.Value;
 import javax.jcr.query.qom.QueryObjectModel;
 import javax.jcr.query.qom.QueryObjectModelFactory;
 import java.util.*;
@@ -60,7 +56,7 @@ import java.util.*;
  * @author Christophe Laprun
  */
 public class TagCloud {
-    public static Map<String, Integer> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext) throws RepositoryException {
+    public static Map<String, Tag> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext) throws RepositoryException {
         final JCRNodeWrapper boundComponent = Functions.getBoundComponent(currentNode, renderContext, "j:bindedComponent");
         if (boundComponent != null) {
             int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
@@ -72,7 +68,7 @@ public class TagCloud {
         return Collections.emptyMap();
     }
 
-    private static Map<String, Integer> createTagCloudFromQuery(JCRNodeWrapper boundComponent, JCRSessionWrapper session, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
+    private static Map<String, Tag> createTagCloudFromQuery(JCRNodeWrapper boundComponent, JCRSessionWrapper session, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
         QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
         QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
 
@@ -89,8 +85,8 @@ public class TagCloud {
         return createTagCloudFromNodeIterator(allTags.getNodes(), minimumCardinalityForInclusion, maxNumberOfTags, true);
     }
 
-    private static Map<String, Integer> createTagCloudFromNodeIterator(NodeIterator nodes, int minimumCardinalityForInclusion, int maxNumberOfTags, boolean hasTagsChecked) throws RepositoryException {
-        final Map<String, Integer> tagCloud = new LinkedHashMap<String, Integer>(maxNumberOfTags);
+    private static Map<String, Tag> createTagCloudFromNodeIterator(JCRNodeIteratorWrapper nodes, int minimumCardinalityForInclusion, int maxNumberOfTags, boolean hasTagsChecked) throws RepositoryException {
+        final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
 
         // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
         SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(new Comparator<Integer>() {
@@ -100,14 +96,17 @@ public class TagCloud {
             }
         });
         final Map<String, Integer> allTags = new HashMap<String, Integer>(maxNumberOfTags * 2);
-        while (nodes.hasNext()) {
-            JCRNodeWrapper node = (JCRNodeWrapper) nodes.nextNode();
+        for (JCRNodeWrapper node : nodes) {
             if (hasTagsChecked || node.hasProperty("j:tags")) {
                 JCRPropertyWrapper property = node.getProperty("j:tags");
                 if (property != null) {
-                    final Value[] values = property.getRealValues();
-                    for (Value value : values) {
-                        final String name = ((JCRValueWrapper) value).getNode().getDisplayableName();
+                    final int type = property.getType();
+
+                    final JCRValueWrapper[] values = property.getValues();
+                    for (JCRValueWrapper value : values) {
+                        final JCRNodeWrapper tagNode = value.getNode();
+                        final String name = tagNode.getDisplayableName();
+                        final String identifier = tagNode.getIdentifier();
 
                         // record tag name and cardinality
                         Integer cardinality = allTags.get(name);
@@ -126,10 +125,10 @@ public class TagCloud {
                         // remove tag from cardinality - 1 since its count just increased
                         final Set<Tag> previous = tagCounts.get(cardinality - 1);
                         if (previous != null) {
-                            previous.remove(new Tag(name, cardinality - 1));
+                            previous.remove(new Tag(name, cardinality - 1, identifier, type));
                         }
                         // add tag to cardinality set
-                        associatedTags.add(new Tag(name, cardinality));
+                        associatedTags.add(new Tag(name, cardinality, identifier, type));
                     }
                 }
             }
@@ -146,7 +145,7 @@ public class TagCloud {
 
             for (Tag tag : tags) {
                 if (tagCloud.size() < maxNumberOfTags) {
-                    tagCloud.put(tag.name, tag.cardinality);
+                    tagCloud.put(tag.name, tag);
                 } else {
                     stop = true;
                     break;
@@ -157,31 +156,29 @@ public class TagCloud {
         return tagCloud;
     }
 
-    private static Map<String, Integer> createTagCloudFromNodeIterable(Iterable<JCRNodeWrapper> nodes) throws RepositoryException {
-        /*Map<String, Integer> tagCloud = new HashMap<String, Integer>();
-        for (JCRNodeWrapper node : nodes) {
-            final JCRPropertyWrapper property = node.getProperty("j:tags");
-            final JCRValueWrapper[] values = property.getRealValues();
-            for (JCRValueWrapper value : values) {
-                final String tag = value.getNode().getDisplayableName();
-                Integer cardinality = tagCloud.get(tag);
-                if (cardinality == null) {
-                    cardinality = 0;
-                }
-                tagCloud.put(tag, cardinality + 1);
-            }
-        }*/
+    public static class Tag {
+        final int cardinality;
+        final String name;
+        final String uuid;
+        final String type;
 
-        return Collections.emptyMap();
-    }
-
-    private static class Tag {
-        int cardinality;
-        String name;
-
-        public Tag(String name, int cardinality) {
+        public Tag(String name, int cardinality, String uuid, int type) {
             this.name = name;
             this.cardinality = cardinality;
+            this.uuid = uuid;
+            this.type = PropertyType.nameFromValue(type);
+        }
+
+        public String getUuid() {
+            return uuid;
+        }
+
+        public int getCardinality() {
+            return cardinality;
+        }
+
+        public String getType() {
+            return type;
         }
 
         @Override

@@ -11,7 +11,8 @@
     <short-name>tagcloud</short-name>
     <uri>http://jahia.org/tags/tagcloud</uri>
     <function>
-        <description>Retrieves a Map&lt;String, Integer&gt; representing the tagcloud of the bound component associated
+        <description>Retrieves a Map&lt;String, TagCloud.Tag&gt; representing the tagcloud of the bound component
+            associated
             with the current node.
         </description>
         <name>getCloud</name>
