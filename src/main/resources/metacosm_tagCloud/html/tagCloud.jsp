@@ -27,14 +27,7 @@
     <c:choose>
         <c:when test="${not empty tagcloud}">
             <c:forEach items="${tagcloud}" var="tag" varStatus="status">
-
-                <c:url var="targetURL" value="${url.mainResource}" context="/">
-                    <c:param name="filter"
-                             value='{name="j:tags",value:"${tag.value.uuid}",op:"eq",uuid:"${boundComponent.UUID}",type:"${tag.value.type}"}'/>
-                </c:url>
-
-                <span id="tag-${fn:replace(tag.key,' ','-')}" class="tag">
-                    <a href='${targetURL}'>${fn:escapeXml(tag.key)} (${tag.value.cardinality})</a></span>
+                <span id="tag-${fn:replace(tag.key,' ','-')}" class="tag"><a href='${tag.value.actionURL}'>${fn:escapeXml(tag.key)} (${tag.value.cardinality})</a></span>
             </c:forEach>
         </c:when>
         <c:otherwise>
