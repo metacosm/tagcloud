@@ -40,6 +40,7 @@
 
 package org.jahia.taglibs.tagcloud;
 
+import org.apache.solr.client.solrj.response.FacetField;
 import org.jahia.services.content.*;
 import org.jahia.services.query.QOMBuilder;
 import org.jahia.services.query.QueryResultWrapper;
@@ -62,7 +63,7 @@ public class TagCloud {
             int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
             int maxNumberOfTags = Integer.parseInt(currentNode.getPropertyAsString("limit"));
 
-            final CloudGenerator generator = new FromQueryCloudGenerator(renderContext);
+            final CloudGenerator generator = new FromFacetsCloudGenerator(renderContext);
             return generator.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags);
         }
 
@@ -130,6 +131,8 @@ public class TagCloud {
     }
 
     private static interface CloudGenerator {
+        String TAGS_PROPERTY_NAME = "j:tags";
+
         Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException;
 
         String generateActionURL(JCRNodeWrapper boundComponent, Tag tag, RenderContext context) throws RepositoryException;
@@ -142,11 +145,47 @@ public class TagCloud {
 
         @Override
         protected void refineQuery(QueryObjectModelFactory factory, QOMBuilder qomBuilder, int minimunCardinalityForInclusion) throws RepositoryException {
-            qomBuilder.getColumns().add(factory.column("tags", "j:tags", "rep:facet(facet.mincount=" + minimunCardinalityForInclusion + "&key=1)"));
+            qomBuilder.getColumns().add(factory.column(SELECTOR_NAME, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimunCardinalityForInclusion + "&key=1)"));
+        }
+
+        @Override
+        protected Map<String, Tag> generateCloudFrom(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, QueryResultWrapper allTags) throws RepositoryException {
+            // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
+            final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(new Comparator<Integer>() {
+                @Override
+                public int compare(Integer o1, Integer o2) {
+                    return o2.compareTo(o1);
+                }
+            });
+
+            final FacetField tags = allTags.getFacetField(TAGS_PROPERTY_NAME);
+            final List<FacetField.Count> values = tags.getValues();
+            for (FacetField.Count value : values) {
+                // facet query should only return tags with a cardinality greater than the one we specified
+                final int count = (int) value.getCount();
+                // facets return value of the j:tags property which is a weak reference to a node so we need to load it to get its name
+                final String tagUUID = value.getName();
+                final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
+                final String name = tagNode.getDisplayableName();
+                final Tag tag = new Tag(name, count, tagUUID, PropertyType.WEAKREFERENCE);
+
+                // add tag to tag counts
+                Set<Tag> associatedTags = tagCounts.get(count);
+                if (associatedTags == null) {
+                    associatedTags = new HashSet<Tag>();
+                    tagCounts.put(count, associatedTags);
+                }
+                associatedTags.add(tag);
+            }
+
+            return keepOnlyMostNumerousTagsUpToMaxNumber(boundComponent, maxNumberOfTags, tagCounts);
         }
     }
 
     private static class FromQueryCloudGenerator extends FromNodeIteratorCloudGenerator {
+
+        public static final String SELECTOR_NAME = "tags";
+
         private FromQueryCloudGenerator(RenderContext context) {
             super(context);
             hasTagsChecked = true;
@@ -158,8 +197,8 @@ public class TagCloud {
             QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
             QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
 
-            qomBuilder.setSource(factory.selector("jmix:tagged", "tags"));
-            qomBuilder.andConstraint(factory.descendantNode("tags", boundComponent.getPath()));
+            qomBuilder.setSource(factory.selector("jmix:tagged", SELECTOR_NAME));
+            qomBuilder.andConstraint(factory.descendantNode(SELECTOR_NAME, boundComponent.getPath()));
 
             // give subclasses the opportunity to refine the query
             refineQuery(factory, qomBuilder, minimumCardinalityForInclusion);
@@ -168,7 +207,10 @@ public class TagCloud {
             qom.setLimit(maxNumberOfTags);
 
             QueryResultWrapper allTags = (QueryResultWrapper) qom.execute();
+            return generateCloudFrom(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, allTags);
+        }
 
+        protected Map<String, Tag> generateCloudFrom(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, QueryResultWrapper allTags) throws RepositoryException {
             // define on which nodes super's implementation will operate
             nodes = allTags.getNodes();
 
@@ -176,7 +218,7 @@ public class TagCloud {
         }
 
         protected void refineQuery(QueryObjectModelFactory factory, QOMBuilder qomBuilder, int minimunCardinalityForInclusion) throws RepositoryException {
-            qomBuilder.andConstraint(factory.propertyExistence("tags", "j:tags"));
+            qomBuilder.andConstraint(factory.propertyExistence(SELECTOR_NAME, TAGS_PROPERTY_NAME));
         }
     }
 
@@ -197,8 +239,6 @@ public class TagCloud {
 
         @Override
         public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
-            final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
-
             // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
             SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(new Comparator<Integer>() {
                 @Override
@@ -206,10 +246,11 @@ public class TagCloud {
                     return o2.compareTo(o1);
                 }
             });
+
             final Map<String, Integer> allTags = new HashMap<String, Integer>(maxNumberOfTags * 2);
             for (JCRNodeWrapper node : nodes) {
-                if (hasTagsChecked || node.hasProperty("j:tags")) {
-                    JCRPropertyWrapper property = node.getProperty("j:tags");
+                if (hasTagsChecked || node.hasProperty(TAGS_PROPERTY_NAME)) {
+                    JCRPropertyWrapper property = node.getProperty(TAGS_PROPERTY_NAME);
                     if (property != null) {
                         final int type = property.getType();
 
@@ -233,6 +274,7 @@ public class TagCloud {
                                 associatedTags = new HashSet<Tag>();
                                 tagCounts.put(cardinality, associatedTags);
                             }
+
                             // remove tag from cardinality - 1 since its count just increased
                             final Set<Tag> previous = tagCounts.get(cardinality - 1);
                             if (previous != null) {
@@ -248,6 +290,11 @@ public class TagCloud {
             // create the tag cloud, only including maxNumberOfTags tags, with only the most numerous tags
             // first only consider tags with more than the minimal cardinality
             final SortedMap<Integer, Set<Tag>> aboveMinimalCardinality = tagCounts.headMap(minimumCardinalityForInclusion - 1);
+            return keepOnlyMostNumerousTagsUpToMaxNumber(boundComponent, maxNumberOfTags, aboveMinimalCardinality);
+        }
+
+        protected Map<String, Tag> keepOnlyMostNumerousTagsUpToMaxNumber(JCRNodeWrapper boundComponent, int maxNumberOfTags, SortedMap<Integer, Set<Tag>> aboveMinimalCardinality) throws RepositoryException {
+            final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
             boolean stop = false;
             for (Set<Tag> tags : aboveMinimalCardinality.values()) {
                 if (stop) {
@@ -264,7 +311,6 @@ public class TagCloud {
                     }
                 }
             }
-
             return tagCloud;
         }
 
