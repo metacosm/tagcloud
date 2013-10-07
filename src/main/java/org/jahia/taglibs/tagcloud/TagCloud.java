@@ -46,6 +46,7 @@ import org.jahia.services.query.QOMBuilder;
 import org.jahia.services.query.QueryResultWrapper;
 import org.jahia.services.render.RenderContext;
 import org.jahia.taglibs.uicomponents.Functions;
+import org.jahia.utils.Url;
 
 import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
@@ -76,6 +77,7 @@ public class TagCloud {
         final String uuid;
         final String type;
         String actionURL;
+        private FacetField.Count facetValue;
 
         public Tag(String name, int cardinality, String uuid, int type) {
             this.name = name;
@@ -128,6 +130,14 @@ public class TagCloud {
         public String toString() {
             return "Tag (" + name + ',' + cardinality + ')';
         }
+
+        public void setFacetValue(FacetField.Count facetValue) {
+            this.facetValue = facetValue;
+        }
+
+        public FacetField.Count getFacetValue() {
+            return facetValue;
+        }
     }
 
     private static interface CloudGenerator {
@@ -169,6 +179,9 @@ public class TagCloud {
                 final String name = tagNode.getDisplayableName();
                 final Tag tag = new Tag(name, count, tagUUID, PropertyType.WEAKREFERENCE);
 
+                // facet filtering
+                tag.setFacetValue(value);
+
                 // add tag to tag counts
                 Set<Tag> associatedTags = tagCounts.get(count);
                 if (associatedTags == null) {
@@ -179,6 +192,13 @@ public class TagCloud {
             }
 
             return keepOnlyMostNumerousTagsUpToMaxNumber(boundComponent, maxNumberOfTags, tagCounts);
+        }
+
+        @Override
+        public String generateActionURL(JCRNodeWrapper boundComponent, Tag tag, RenderContext context) throws RepositoryException {
+            final String url = context.getURLGenerator().getMainResource();
+
+            return url + "?N-" + boundComponent.getName() + "=" + Url.encodeUrlParam(org.jahia.taglibs.facet.Functions.getFacetDrillDownUrl(tag.getFacetValue(), ""));
         }
     }
 
