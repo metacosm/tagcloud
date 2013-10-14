@@ -40,12 +40,13 @@
 
 package org.jahia.taglibs.tagcloud;
 
+import org.apache.commons.collections.KeyValue;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.jahia.services.content.*;
 import org.jahia.services.query.QOMBuilder;
 import org.jahia.services.query.QueryResultWrapper;
 import org.jahia.services.render.RenderContext;
-import org.jahia.taglibs.uicomponents.Functions;
+import org.jahia.taglibs.facet.Functions;
 import org.jahia.utils.Url;
 
 import javax.jcr.PropertyType;
@@ -59,13 +60,17 @@ import java.util.*;
  */
 public class TagCloud {
     public static Map<String, Tag> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext) throws RepositoryException {
-        final JCRNodeWrapper boundComponent = Functions.getBoundComponent(currentNode, renderContext, "j:bindedComponent");
+        final JCRNodeWrapper boundComponent = org.jahia.taglibs.uicomponents.Functions.getBoundComponent(currentNode, renderContext, "j:bindedComponent");
         if (boundComponent != null) {
             int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
             int maxNumberOfTags = Integer.parseInt(currentNode.getPropertyAsString("limit"));
 
-            final CloudGenerator generator = new FromFacetsCloudGenerator(renderContext);
-            return generator.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags);
+            final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter("N-" + boundComponent.getName()));
+
+            final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
+
+            final CloudGenerator generator = new FromFacetsCloudGenerator(renderContext, currentQuery);
+            return generator.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
         }
 
         return Collections.emptyMap();
@@ -143,14 +148,17 @@ public class TagCloud {
     private static interface CloudGenerator {
         String TAGS_PROPERTY_NAME = "j:tags";
 
-        Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException;
+        Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException;
 
         String generateActionURL(JCRNodeWrapper boundComponent, Tag tag, RenderContext context) throws RepositoryException;
     }
 
     private static class FromFacetsCloudGenerator extends FromQueryCloudGenerator {
-        private FromFacetsCloudGenerator(RenderContext context) {
+        private final String currentQuery;
+
+        private FromFacetsCloudGenerator(RenderContext context, String currentQuery) {
             super(context);
+            this.currentQuery = currentQuery;
         }
 
         @Override
@@ -159,7 +167,7 @@ public class TagCloud {
         }
 
         @Override
-        protected Map<String, Tag> generateCloudFrom(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, QueryResultWrapper allTags) throws RepositoryException {
+        protected Map<String, Tag> generateCloudFrom(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, QueryResultWrapper allTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException {
             // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
             final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(new Comparator<Integer>() {
                 @Override
@@ -198,7 +206,7 @@ public class TagCloud {
         public String generateActionURL(JCRNodeWrapper boundComponent, Tag tag, RenderContext context) throws RepositoryException {
             final String url = context.getURLGenerator().getMainResource();
 
-            return url + "?N-" + boundComponent.getName() + "=" + Url.encodeUrlParam(org.jahia.taglibs.facet.Functions.getFacetDrillDownUrl(tag.getFacetValue(), ""));
+            return url + "?N-" + boundComponent.getName() + "=" + Url.encodeUrlParam(Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
         }
     }
 
@@ -212,7 +220,7 @@ public class TagCloud {
         }
 
         @Override
-        public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
+        public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException {
             final JCRSessionWrapper session = boundComponent.getSession();
             QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
             QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
@@ -227,14 +235,14 @@ public class TagCloud {
             qom.setLimit(maxNumberOfTags);
 
             QueryResultWrapper allTags = (QueryResultWrapper) qom.execute();
-            return generateCloudFrom(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, allTags);
+            return generateCloudFrom(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, allTags, appliedFacets);
         }
 
-        protected Map<String, Tag> generateCloudFrom(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, QueryResultWrapper allTags) throws RepositoryException {
+        protected Map<String, Tag> generateCloudFrom(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, QueryResultWrapper allTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException {
             // define on which nodes super's implementation will operate
             nodes = allTags.getNodes();
 
-            return super.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags);
+            return super.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
         }
 
         protected void refineQuery(QueryObjectModelFactory factory, QOMBuilder qomBuilder, int minimunCardinalityForInclusion) throws RepositoryException {
@@ -258,7 +266,7 @@ public class TagCloud {
         }
 
         @Override
-        public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
+        public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException {
             // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
             SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(new Comparator<Integer>() {
                 @Override
