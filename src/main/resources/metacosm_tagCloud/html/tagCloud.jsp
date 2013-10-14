@@ -19,11 +19,8 @@
 <%--@elvariable id="tagcloud" type="java.util.Map<String,TagCloud.Tag>--%>
 <template:addResources type="css" resources="tagCloud.css"/>
 
-<c:set var="boundComponent" value="${uiComponents:getBoundComponent(currentNode, renderContext, 'j:bindedComponent')}"/>
-
 <div id="tagcloud${boundComponent.identifier}" class="tagcloud">
-    <c:set var="tagcloud" value="${tagcloud:getCloud(currentNode, renderContext)}" scope="request"/>
-
+    <tagcloud:tagcloud cloud="tagcloud"/>
     <c:choose>
         <c:when test="${not empty tagcloud}">
             <c:forEach items="${tagcloud}" var="tag" varStatus="status">

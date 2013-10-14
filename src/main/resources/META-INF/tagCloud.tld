@@ -10,6 +10,18 @@
     <tlib-version>1.0</tlib-version>
     <short-name>tagcloud</short-name>
     <uri>http://jahia.org/tags/tagcloud</uri>
+
+    <tag>
+        <name>tagcloud</name>
+        <tag-class>org.jahia.modules.tagcloud.taglibs.TagCloudTag</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>cloud</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
     <function>
         <description>Retrieves a Map&lt;String, TagCloud.Tag&gt; representing the tagcloud of the bound component
             associated
@@ -17,8 +29,7 @@
         </description>
         <name>getCloud</name>
         <function-class>org.jahia.taglibs.tagcloud.TagCloud</function-class>
-        <function-signature>java.util.Map getCloud(org.jahia.services.content.JCRNodeWrapper,
-            org.jahia.services.render.RenderContext)
+        <function-signature>java.util.Map getCloud(org.jahia.services.content.JCRNodeWrapper, org.jahia.services.render.RenderContext)
         </function-signature>
         <example></example>
     </function>
