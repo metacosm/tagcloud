@@ -42,6 +42,7 @@ package org.jahia.modules.tagcloud.taglibs;
 import org.jahia.services.content.JCRNodeWrapper;
 import org.jahia.taglibs.AbstractJahiaTag;
 import org.jahia.taglibs.tagcloud.TagCloud;
+import org.jahia.taglibs.uicomponents.Functions;
 
 import javax.jcr.RepositoryException;
 import javax.servlet.jsp.JspException;
@@ -53,17 +54,27 @@ import java.util.Map;
  */
 public class TagCloudTag extends AbstractJahiaTag {
     private String cloudVar;
+    private String target;
 
     public void setCloud(String cloud) {
         this.cloudVar = cloud;
+    }
+
+    public void setTarget(String target) {
+        this.target = target;
     }
 
     @Override
     public int doStartTag() throws JspException {
         try {
             final JCRNodeWrapper node = getCurrentResource().getNode();
-            final Map<String, TagCloud.Tag> cloud = TagCloud.getCloud(node, getRenderContext());
+            final JCRNodeWrapper boundComponent = Functions.getBoundComponent(node, getRenderContext(), "j:bindedComponent");
+            final Map<String, TagCloud.Tag> cloud = TagCloud.getCloud(node, getRenderContext(), boundComponent);
             pageContext.setAttribute(cloudVar, cloud, PageContext.REQUEST_SCOPE);
+
+            if (target != null && !target.isEmpty()) {
+                pageContext.setAttribute(target, boundComponent, PageContext.REQUEST_SCOPE);
+            }
         } catch (RepositoryException e) {
             throw new JspException(e);
         }

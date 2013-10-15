@@ -59,8 +59,7 @@ import java.util.*;
  * @author Christophe Laprun
  */
 public class TagCloud {
-    public static Map<String, Tag> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext) throws RepositoryException {
-        final JCRNodeWrapper boundComponent = org.jahia.taglibs.uicomponents.Functions.getBoundComponent(currentNode, renderContext, "j:bindedComponent");
+    public static Map<String, Tag> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext, JCRNodeWrapper boundComponent) throws RepositoryException {
         if (boundComponent != null) {
             int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
             int maxNumberOfTags = Integer.parseInt(currentNode.getPropertyAsString("limit"));

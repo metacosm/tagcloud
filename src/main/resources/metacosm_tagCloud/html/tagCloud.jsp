@@ -18,9 +18,13 @@
 <%--@elvariable id="acl" type="java.lang.String"--%>
 <%--@elvariable id="tagcloud" type="java.util.Map<String,TagCloud.Tag>--%>
 <template:addResources type="css" resources="tagCloud.css"/>
+<%-- Creates the tag cloud and put the resulting data in the tagcloud variable, target attribute specifies the name of the component on which the tag cloud will operate --%>
+<tagcloud:tagcloud cloud="tagcloud" target="boundComponent"/>
 
-<div id="tagcloud${boundComponent.identifier}" class="tagcloud">
-    <tagcloud:tagcloud cloud="tagcloud"/>
+<c:set var="targetId" value="${boundComponent.identifier}"/>
+
+<div id="tagcloud${targetId}" class="tagcloud">
+
     <c:choose>
         <c:when test="${not empty tagcloud}">
             <c:forEach items="${tagcloud}" var="tag" varStatus="status">
@@ -28,7 +32,7 @@
             </c:forEach>
         </c:when>
         <c:otherwise>
-            <span class="notaggeditem${boundComponent.identifier}"><fmt:message key="label.tags.notag"/></span>
+            <span class="notaggeditem${targetId}"><fmt:message key="label.tags.notag"/></span>
         </c:otherwise>
     </c:choose>
 </div>
