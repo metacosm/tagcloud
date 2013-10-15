@@ -82,12 +82,17 @@ public class TagCloud {
         final String type;
         String actionURL;
         private FacetField.Count facetValue;
+        private static int totalCardinality;
 
         public Tag(String name, int cardinality, String uuid, int type) {
             this.name = name;
             this.cardinality = cardinality;
             this.uuid = uuid;
             this.type = PropertyType.nameFromValue(type);
+        }
+
+        public static void setTotalCardinality(int totalCardinality) {
+            Tag.totalCardinality = totalCardinality;
         }
 
         public String getUuid() {
@@ -108,6 +113,11 @@ public class TagCloud {
 
         public void setActionURL(String actionURL) {
             this.actionURL = actionURL;
+        }
+
+        public int getWeight() {
+            float weight = totalCardinality > 0 ? 100 * ((float)cardinality / (float)totalCardinality) : 100 / (float)cardinality;
+            return (int) weight;
         }
 
         @Override
@@ -177,6 +187,7 @@ public class TagCloud {
 
             final FacetField tags = allTags.getFacetField(TAGS_PROPERTY_NAME);
             final List<FacetField.Count> values = tags.getValues();
+            int totalCardinality = 0;
             for (FacetField.Count value : values) {
                 // facet query should only return tags with a cardinality greater than the one we specified
                 final int count = (int) value.getCount();
@@ -185,6 +196,9 @@ public class TagCloud {
                 final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
                 final String name = tagNode.getDisplayableName();
                 final Tag tag = new Tag(name, count, tagUUID, PropertyType.WEAKREFERENCE);
+
+                // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
+                totalCardinality += count;
 
                 // facet filtering
                 tag.setFacetValue(value);
@@ -197,6 +211,7 @@ public class TagCloud {
                 }
                 associatedTags.add(tag);
             }
+            Tag.setTotalCardinality(totalCardinality);
 
             return keepOnlyMostNumerousTagsUpToMaxNumber(boundComponent, maxNumberOfTags, tagCounts);
         }
