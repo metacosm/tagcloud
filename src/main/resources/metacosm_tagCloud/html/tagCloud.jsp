@@ -16,17 +16,26 @@
 <%--@elvariable id="currentResource" type="org.jahia.services.render.Resource"--%>
 <%--@elvariable id="url" type="org.jahia.services.render.URLGenerator"--%>
 <%--@elvariable id="acl" type="java.lang.String"--%>
-<%--@elvariable id="tagcloud" type="java.util.Map<String,TagCloud.Tag>--%>
+<%--@elvariable id="tagcloud" type="java.util.Map<String,Tag>--%>
+<%--@elvariable id="applied" type="java.util.List<Tag>--%>
 <template:addResources type="css" resources="tagCloud.css"/>
 <template:addResources type="javascript" resources="jquery.tagcanvas.min.js"/>
 <template:addResources type="javascript" resources="excanvas.js" condition="if lt IE 9"/>
 
-<%-- Creates the tag cloud and put the resulting data in the tagcloud variable, target attribute specifies the name of the component on which the tag cloud will operate --%>
-<tagcloud:tagcloud cloud="tagcloud" target="boundComponent"/>
+<%-- Creates the tag cloud and put the resulting data in the tagcloud variable, applied attribute contains the list of applied tags, target attribute specifies the name of the component on which the tag cloud will operate --%>
+<tagcloud:tagcloud cloud="tagcloud" appliedTags="applied" target="boundComponent"/>
 
 <c:set var="targetId" value="${boundComponent.identifier}"/>
 
 <div id="tagcloud${targetId}" class="tagcloud">
+
+    <c:if test="${not empty applied}">
+        <ul>
+            <c:forEach items="${applied}" var="tag">
+                <li><a href="${tag.deleteActionURL}">${tag.name}</a></li>
+            </c:forEach>
+        </ul>
+    </c:if>
 
     <c:choose>
         <c:when test="${not empty tagcloud}">
@@ -65,8 +74,8 @@
             --%>
             <div id="tags${targetId}">
                 <ul>
-                    <c:forEach items="${tagcloud}" var="tag" varStatus="status">
-                        <li id="tag-${fn:replace(tag.key,' ','-')}" class="tag"><a href='${tag.value.actionURL}' data-weight='${tag.value.weight}'>${fn:escapeXml(tag.key)}</a></li>
+                    <c:forEach items="${tagcloud}" var="tag">
+                    <li id="tag-${fn:replace(tag.key,' ','-')}" class="tag"><a href='${tag.value.actionURL}' data-weight='${tag.value.weight}'>${fn:escapeXml(tag.key)}</a></li>
                     </c:forEach>
                 </ul>
             </div>

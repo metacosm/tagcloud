@@ -72,6 +72,7 @@ public class TagCloudTag extends AbstractJahiaTag {
 
     private String cloudVar;
     private String target;
+    private String appliedTags;
 
     public void setCloud(String cloud) {
         this.cloudVar = cloud;
@@ -81,6 +82,10 @@ public class TagCloudTag extends AbstractJahiaTag {
         this.target = target;
     }
 
+    public void setAppliedTags(String appliedTags) {
+        this.appliedTags = appliedTags;
+    }
+
     @Override
     public int doStartTag() throws JspException {
         try {
@@ -88,8 +93,6 @@ public class TagCloudTag extends AbstractJahiaTag {
             final RenderContext renderContext = getRenderContext();
             final JCRNodeWrapper boundComponent = org.jahia.taglibs.uicomponents.Functions.getBoundComponent(node, renderContext, "j:bindedComponent");
 
-            // generate tag cloud
-            Map<String, Tag> cloud = Collections.emptyMap();
             if (boundComponent != null) {
 
                 // get component configuration
@@ -100,11 +103,9 @@ public class TagCloudTag extends AbstractJahiaTag {
                 final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
                 final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter(facetURLParameterName));
 
-                // generate cloud
-                cloud = generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, currentQuery, renderContext);
+                // generate cloud and applied facet list
+                generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, currentQuery, renderContext);
             }
-
-            pageContext.setAttribute(cloudVar, cloud, PageContext.REQUEST_SCOPE);
 
             if (target != null && !target.isEmpty()) {
                 pageContext.setAttribute(target, boundComponent, PageContext.REQUEST_SCOPE);
@@ -116,13 +117,28 @@ public class TagCloudTag extends AbstractJahiaTag {
         return SKIP_BODY;
     }
 
-    public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, String currentQuery, RenderContext renderContext) throws RepositoryException {
-        final Map<String, List<KeyValue>> appliedFacets = org.jahia.taglibs.facet.Functions.getAppliedFacetFilters(currentQuery);
+    public void generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, String currentQuery, RenderContext renderContext) throws RepositoryException {
 
         QueryResultWrapper allTags = getNodesWithFacets(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags);
 
-        // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
+        // map recording which unapplied tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
         final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(INVERSE_ORDER_COMPARATOR);
+        // applied facets
+        final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
+        // applied tags facets
+        final List<KeyValue> appliedTagsValues = appliedFacets.get(TAGS_PROPERTY_NAME);
+        Map.Entry<String, List<KeyValue>> appliedTagsFacets = null;
+        // list of applied tags
+        List<Tag> appliedTagsList = Collections.emptyList();
+        if (appliedTagsValues != null) {
+            appliedTagsFacets = new StringListEntry(TAGS_PROPERTY_NAME, appliedTagsValues);
+            appliedTagsList = new ArrayList<Tag>(appliedTagsValues.size());
+        }
+
+        // action URL start
+        final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
+        final String url = renderContext.getURLGenerator().getMainResource();
+        final String actionURLStart = url + "?" + facetURLParameterName + "=";
 
         // process the query results
         final FacetField tags = allTags.getFacetField(TAGS_PROPERTY_NAME);
@@ -131,6 +147,7 @@ public class TagCloudTag extends AbstractJahiaTag {
         for (FacetField.Count value : values) {
             // facet query should only return tags with a cardinality greater than the one we specified
             final int count = (int) value.getCount();
+
             // facets return value of the j:tags property which is a weak reference to a node so we need to load it to get its name
             final String tagUUID = value.getName();
             final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
@@ -139,23 +156,33 @@ public class TagCloudTag extends AbstractJahiaTag {
             // create tag
             final Tag tag = new Tag(name, count, tagUUID, value);
 
-            // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
-            totalCardinality += count;
+            if (!Functions.isFacetValueApplied(value, appliedFacets)) {
+                // only add tag to cloud if it's not applied
 
-            // add tag to tag counts
-            Set<Tag> associatedTags = tagCounts.get(count);
-            if (associatedTags == null) {
-                associatedTags = new HashSet<Tag>();
-                tagCounts.put(count, associatedTags);
+                // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
+                totalCardinality += count;
+
+                // add tag to tag counts
+                Set<Tag> associatedTags = tagCounts.get(count);
+                if (associatedTags == null) {
+                    associatedTags = new HashSet<Tag>();
+                    tagCounts.put(count, associatedTags);
+                }
+                associatedTags.add(tag);
+            } else {
+                // get KeyValue for current tag
+                KeyValue current = null;
+                for (KeyValue tagsValue : appliedTagsValues) {
+                    if (tagUUID.equals(tagsValue.getKey())) {
+                        current = tagsValue;
+                    }
+                }
+
+                tag.setDeleteActionURL(getActionURL(actionURLStart, Url.encodeUrlParam(Functions.getDeleteFacetUrl(appliedTagsFacets, current, currentQuery))));
+                appliedTagsList.add(tag);
             }
-            associatedTags.add(tag);
         }
         Tag.setTotalCardinality(totalCardinality);
-
-        // action URL start
-        final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
-        final String url = renderContext.getURLGenerator().getMainResource();
-        final String actionURLStart = url + "?" + facetURLParameterName + "=";
 
         // extract only the maxNumberOfTags most numerous tags
         final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
@@ -167,7 +194,7 @@ public class TagCloudTag extends AbstractJahiaTag {
 
             for (Tag tag : tags1) {
                 if (tagCloud.size() < maxNumberOfTags) {
-                    String result = actionURLStart + Url.encodeUrlParam(Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
+                    String result = getActionURL(actionURLStart, (Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery)));
                     tag.setActionURL(result);
                     tagCloud.put(tag.getName(), tag);
                 } else {
@@ -176,7 +203,13 @@ public class TagCloudTag extends AbstractJahiaTag {
                 }
             }
         }
-        return tagCloud;
+
+        pageContext.setAttribute(cloudVar, tagCloud, PageContext.REQUEST_SCOPE);
+        pageContext.setAttribute(appliedTags, appliedTagsList, PageContext.REQUEST_SCOPE);
+    }
+
+    private String getActionURL(String start, String paramValue) {
+        return start + Url.encodeUrlParam(paramValue);
     }
 
     private QueryResultWrapper getNodesWithFacets(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
@@ -205,5 +238,30 @@ public class TagCloudTag extends AbstractJahiaTag {
      */
     static String getFacetURLParameterName(String targetName) {
         return "N-" + targetName;
+    }
+
+    private static class StringListEntry implements Map.Entry<String, List<KeyValue>> {
+        private String key;
+        private List<KeyValue> value;
+
+        public StringListEntry(String key, List<KeyValue> value) {
+            this.key = key;
+            this.value = value;
+        }
+
+        @Override
+        public String getKey() {
+            return key;
+        }
+
+        @Override
+        public List<KeyValue> getValue() {
+            return value;
+        }
+
+        @Override
+        public List<KeyValue> setValue(List<KeyValue> value) {
+            throw new UnsupportedOperationException();
+        }
     }
 }

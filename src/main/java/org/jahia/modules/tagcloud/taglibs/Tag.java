@@ -54,6 +54,7 @@ public class Tag {
     private final static String type = PropertyType.TYPENAME_WEAKREFERENCE;
     String actionURL;
     private static int totalCardinality;
+    private String deleteActionURL;
 
     public Tag(String name, int cardinality, String uuid, FacetField.Count facetValue) {
         this.name = name;
@@ -122,5 +123,13 @@ public class Tag {
 
     public FacetField.Count getFacetValue() {
         return facetValue;
+    }
+
+    public void setDeleteActionURL(String deleteActionURL) {
+        this.deleteActionURL = deleteActionURL;
+    }
+
+    public String getDeleteActionURL() {
+        return deleteActionURL;
     }
 }
