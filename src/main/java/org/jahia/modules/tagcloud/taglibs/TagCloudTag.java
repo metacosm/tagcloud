@@ -47,10 +47,9 @@ import org.jahia.services.query.QOMBuilder;
 import org.jahia.services.query.QueryResultWrapper;
 import org.jahia.services.render.RenderContext;
 import org.jahia.taglibs.AbstractJahiaTag;
-import org.jahia.taglibs.uicomponents.Functions;
+import org.jahia.taglibs.facet.Functions;
 import org.jahia.utils.Url;
 
-import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
 import javax.jcr.query.qom.QueryObjectModel;
 import javax.jcr.query.qom.QueryObjectModelFactory;
@@ -64,6 +63,12 @@ import java.util.*;
 public class TagCloudTag extends AbstractJahiaTag {
     private static final String SELECTOR_NAME = "tags";
     private static final String TAGS_PROPERTY_NAME = "j:tags";
+    public static final Comparator<Integer> INVERSE_ORDER_COMPARATOR = new Comparator<Integer>() {
+        @Override
+        public int compare(Integer o1, Integer o2) {
+            return o2.compareTo(o1);
+        }
+    };
 
     private String cloudVar;
     private String target;
@@ -81,17 +86,21 @@ public class TagCloudTag extends AbstractJahiaTag {
         try {
             final JCRNodeWrapper node = getCurrentResource().getNode();
             final RenderContext renderContext = getRenderContext();
-            final JCRNodeWrapper boundComponent = Functions.getBoundComponent(node, renderContext, "j:bindedComponent");
+            final JCRNodeWrapper boundComponent = org.jahia.taglibs.uicomponents.Functions.getBoundComponent(node, renderContext, "j:bindedComponent");
 
             // generate tag cloud
             Map<String, Tag> cloud = Collections.emptyMap();
             if (boundComponent != null) {
+
+                // get component configuration
                 int minimumCardinalityForInclusion = Integer.parseInt(node.getPropertyAsString("j:usageThreshold"));
                 int maxNumberOfTags = Integer.parseInt(node.getPropertyAsString("limit"));
 
+                // extract URL parameters
                 final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
                 final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter(facetURLParameterName));
 
+                // generate cloud
                 cloud = generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, currentQuery, renderContext);
             }
 
@@ -127,13 +136,9 @@ public class TagCloudTag extends AbstractJahiaTag {
         QueryResultWrapper allTags = (QueryResultWrapper) qom.execute();
 
         // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
-        final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(new Comparator<Integer>() {
-            @Override
-            public int compare(Integer o1, Integer o2) {
-                return o2.compareTo(o1);
-            }
-        });
+        final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(INVERSE_ORDER_COMPARATOR);
 
+        // process the query results
         final FacetField tags = allTags.getFacetField(TAGS_PROPERTY_NAME);
         final List<FacetField.Count> values = tags.getValues();
         int totalCardinality = 0;
@@ -145,7 +150,7 @@ public class TagCloudTag extends AbstractJahiaTag {
             final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
             final String name = tagNode.getDisplayableName();
 
-            // use specific Tag subclass that adds facet filtering support
+            // create tag
             final Tag tag = new Tag(name, count, tagUUID, value);
 
             // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
@@ -161,7 +166,12 @@ public class TagCloudTag extends AbstractJahiaTag {
         }
         Tag.setTotalCardinality(totalCardinality);
 
+        // action URL start
+        final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
         final String url = renderContext.getURLGenerator().getMainResource();
+        final String actionURLStart = url + "?" + facetURLParameterName + "=";
+
+        // extract only the maxNumberOfTags most numerous tags
         final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
         boolean stop = false;
         for (Set<Tag> tags1 : tagCounts.values()) {
@@ -171,7 +181,7 @@ public class TagCloudTag extends AbstractJahiaTag {
 
             for (Tag tag : tags1) {
                 if (tagCloud.size() < maxNumberOfTags) {
-                    String result = url + "?" + getFacetURLParameterName(boundComponent.getName()) + "=" + Url.encodeUrlParam(org.jahia.taglibs.facet.Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
+                    String result = actionURLStart + Url.encodeUrlParam(Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
                     tag.setActionURL(result);
                     tagCloud.put(tag.getName(), tag);
                 } else {
