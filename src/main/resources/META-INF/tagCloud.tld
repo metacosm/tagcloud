@@ -28,15 +28,4 @@
             <type>java.lang.String</type>
         </attribute>
     </tag>
-    <function>
-        <description>Retrieves a Map&lt;String, TagCloud.Tag&gt; representing the tagcloud of the bound component
-            associated
-            with the current node.
-        </description>
-        <name>getCloud</name>
-        <function-class>org.jahia.taglibs.tagcloud.TagCloud</function-class>
-        <function-signature>java.util.Map getCloud(org.jahia.services.content.JCRNodeWrapper, org.jahia.services.render.RenderContext)
-        </function-signature>
-        <example></example>
-    </function>
 </taglib>

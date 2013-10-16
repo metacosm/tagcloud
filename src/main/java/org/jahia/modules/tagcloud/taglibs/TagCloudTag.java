@@ -39,21 +39,32 @@
  */
 package org.jahia.modules.tagcloud.taglibs;
 
+import org.apache.commons.collections.KeyValue;
+import org.apache.solr.client.solrj.response.FacetField;
 import org.jahia.services.content.JCRNodeWrapper;
+import org.jahia.services.content.JCRSessionWrapper;
+import org.jahia.services.query.QOMBuilder;
+import org.jahia.services.query.QueryResultWrapper;
+import org.jahia.services.render.RenderContext;
 import org.jahia.taglibs.AbstractJahiaTag;
-import org.jahia.taglibs.tagcloud.Tag;
-import org.jahia.taglibs.tagcloud.TagCloud;
 import org.jahia.taglibs.uicomponents.Functions;
+import org.jahia.utils.Url;
 
+import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
+import javax.jcr.query.qom.QueryObjectModel;
+import javax.jcr.query.qom.QueryObjectModelFactory;
 import javax.servlet.jsp.JspException;
 import javax.servlet.jsp.PageContext;
-import java.util.Map;
+import java.util.*;
 
 /**
  * @author Christophe Laprun
  */
 public class TagCloudTag extends AbstractJahiaTag {
+    private static final String SELECTOR_NAME = "tags";
+    private static final String TAGS_PROPERTY_NAME = "j:tags";
+
     private String cloudVar;
     private String target;
 
@@ -69,8 +80,21 @@ public class TagCloudTag extends AbstractJahiaTag {
     public int doStartTag() throws JspException {
         try {
             final JCRNodeWrapper node = getCurrentResource().getNode();
-            final JCRNodeWrapper boundComponent = Functions.getBoundComponent(node, getRenderContext(), "j:bindedComponent");
-            final Map<String, Tag> cloud = TagCloud.getCloud(node, getRenderContext(), boundComponent);
+            final RenderContext renderContext = getRenderContext();
+            final JCRNodeWrapper boundComponent = Functions.getBoundComponent(node, renderContext, "j:bindedComponent");
+
+            // generate tag cloud
+            Map<String, Tag> cloud = Collections.emptyMap();
+            if (boundComponent != null) {
+                int minimumCardinalityForInclusion = Integer.parseInt(node.getPropertyAsString("j:usageThreshold"));
+                int maxNumberOfTags = Integer.parseInt(node.getPropertyAsString("limit"));
+
+                final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
+                final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter(facetURLParameterName));
+
+                cloud = generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, currentQuery, renderContext);
+            }
+
             pageContext.setAttribute(cloudVar, cloud, PageContext.REQUEST_SCOPE);
 
             if (target != null && !target.isEmpty()) {
@@ -81,5 +105,92 @@ public class TagCloudTag extends AbstractJahiaTag {
         }
 
         return SKIP_BODY;
+    }
+
+    public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, String currentQuery, RenderContext renderContext) throws RepositoryException {
+        final Map<String, List<KeyValue>> appliedFacets = org.jahia.taglibs.facet.Functions.getAppliedFacetFilters(currentQuery);
+
+        // retrieve all jmix:tagged nodes that descending from the bound component path
+        final JCRSessionWrapper session = boundComponent.getSession();
+        QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
+        QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
+        qomBuilder.setSource(factory.selector("jmix:tagged", SELECTOR_NAME));
+        qomBuilder.andConstraint(factory.descendantNode(SELECTOR_NAME, boundComponent.getPath()));
+
+        // faceting on the TAGS_PROPERTY_NAME field with specified minimum cardinality
+        qomBuilder.getColumns().add(factory.column(SELECTOR_NAME, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
+
+        // limiting the query to the specified maximum number of tags
+        QueryObjectModel qom = qomBuilder.createQOM();
+        qom.setLimit(maxNumberOfTags);
+
+        QueryResultWrapper allTags = (QueryResultWrapper) qom.execute();
+
+        // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
+        final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(new Comparator<Integer>() {
+            @Override
+            public int compare(Integer o1, Integer o2) {
+                return o2.compareTo(o1);
+            }
+        });
+
+        final FacetField tags = allTags.getFacetField(TAGS_PROPERTY_NAME);
+        final List<FacetField.Count> values = tags.getValues();
+        int totalCardinality = 0;
+        for (FacetField.Count value : values) {
+            // facet query should only return tags with a cardinality greater than the one we specified
+            final int count = (int) value.getCount();
+            // facets return value of the j:tags property which is a weak reference to a node so we need to load it to get its name
+            final String tagUUID = value.getName();
+            final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
+            final String name = tagNode.getDisplayableName();
+
+            // use specific Tag subclass that adds facet filtering support
+            final Tag tag = new Tag(name, count, tagUUID, PropertyType.WEAKREFERENCE, value);
+
+            // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
+            totalCardinality += count;
+
+            // add tag to tag counts
+            Set<Tag> associatedTags = tagCounts.get(count);
+            if (associatedTags == null) {
+                associatedTags = new HashSet<Tag>();
+                tagCounts.put(count, associatedTags);
+            }
+            associatedTags.add(tag);
+        }
+        Tag.setTotalCardinality(totalCardinality);
+
+        final String url = renderContext.getURLGenerator().getMainResource();
+        final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
+        boolean stop = false;
+        for (Set<Tag> tags1 : tagCounts.values()) {
+            if (stop) {
+                break;
+            }
+
+            for (Tag tag : tags1) {
+                if (tagCloud.size() < maxNumberOfTags) {
+                    String result = url + "?" + getFacetURLParameterName(boundComponent.getName()) + "=" + Url.encodeUrlParam(org.jahia.taglibs.facet.Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
+                    tag.setActionURL(result);
+                    tagCloud.put(tag.getName(), tag);
+                } else {
+                    stop = true;
+                    break;
+                }
+            }
+        }
+        return tagCloud;
+    }
+
+
+    /**
+     * Isolate parameter name in a single spot
+     *
+     * @param targetName
+     * @return
+     */
+    static String getFacetURLParameterName(String targetName) {
+        return "N-" + targetName;
     }
 }
