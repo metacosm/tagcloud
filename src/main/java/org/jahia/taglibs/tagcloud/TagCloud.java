@@ -64,7 +64,8 @@ public class TagCloud {
             int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
             int maxNumberOfTags = Integer.parseInt(currentNode.getPropertyAsString("limit"));
 
-            final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter("N-" + boundComponent.getName()));
+            final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
+            final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter(facetURLParameterName));
 
             final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
 
@@ -73,6 +74,15 @@ public class TagCloud {
         }
 
         return Collections.emptyMap();
+    }
+
+    /**
+     * Isolate parameter name in a single spot
+     * @param targetName
+     * @return
+     */
+    private static String getFacetURLParameterName(String targetName) {
+        return "N-" + targetName;
     }
 
     public static class Tag {
@@ -220,7 +230,7 @@ public class TagCloud {
         public String generateActionURL(JCRNodeWrapper boundComponent, Tag tag, RenderContext context) throws RepositoryException {
             final String url = context.getURLGenerator().getMainResource();
 
-            return url + "?N-" + boundComponent.getName() + "=" + Url.encodeUrlParam(Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
+            return url + "?" + getFacetURLParameterName(boundComponent.getName()) + "=" + Url.encodeUrlParam(Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
         }
     }
 
