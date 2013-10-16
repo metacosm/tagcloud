@@ -51,15 +51,14 @@ public class Tag {
     private final int cardinality;
     private final String name;
     private final String uuid;
-    private final String type;
+    private final static String type = PropertyType.TYPENAME_WEAKREFERENCE;
     String actionURL;
     private static int totalCardinality;
 
-    public Tag(String name, int cardinality, String uuid, int type, FacetField.Count facetValue) {
+    public Tag(String name, int cardinality, String uuid, FacetField.Count facetValue) {
         this.name = name;
         this.cardinality = cardinality;
         this.uuid = uuid;
-        this.type = PropertyType.nameFromValue(type);
         this.facetValue = facetValue;
     }
 

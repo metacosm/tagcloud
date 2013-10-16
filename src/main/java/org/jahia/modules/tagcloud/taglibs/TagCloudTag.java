@@ -146,7 +146,7 @@ public class TagCloudTag extends AbstractJahiaTag {
             final String name = tagNode.getDisplayableName();
 
             // use specific Tag subclass that adds facet filtering support
-            final Tag tag = new Tag(name, count, tagUUID, PropertyType.WEAKREFERENCE, value);
+            final Tag tag = new Tag(name, count, tagUUID, value);
 
             // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
             totalCardinality += count;
