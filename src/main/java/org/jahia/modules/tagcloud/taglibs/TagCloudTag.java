@@ -119,21 +119,7 @@ public class TagCloudTag extends AbstractJahiaTag {
     public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, String currentQuery, RenderContext renderContext) throws RepositoryException {
         final Map<String, List<KeyValue>> appliedFacets = org.jahia.taglibs.facet.Functions.getAppliedFacetFilters(currentQuery);
 
-        // retrieve all jmix:tagged nodes that descending from the bound component path
-        final JCRSessionWrapper session = boundComponent.getSession();
-        QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
-        QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
-        qomBuilder.setSource(factory.selector("jmix:tagged", SELECTOR_NAME));
-        qomBuilder.andConstraint(factory.descendantNode(SELECTOR_NAME, boundComponent.getPath()));
-
-        // faceting on the TAGS_PROPERTY_NAME field with specified minimum cardinality
-        qomBuilder.getColumns().add(factory.column(SELECTOR_NAME, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
-
-        // limiting the query to the specified maximum number of tags
-        QueryObjectModel qom = qomBuilder.createQOM();
-        qom.setLimit(maxNumberOfTags);
-
-        QueryResultWrapper allTags = (QueryResultWrapper) qom.execute();
+        QueryResultWrapper allTags = getNodesWithFacets(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags);
 
         // map recording which tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
         final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(INVERSE_ORDER_COMPARATOR);
@@ -191,6 +177,23 @@ public class TagCloudTag extends AbstractJahiaTag {
             }
         }
         return tagCloud;
+    }
+
+    private QueryResultWrapper getNodesWithFacets(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
+        // retrieve all jmix:tagged nodes that descending from the bound component path
+        final JCRSessionWrapper session = boundComponent.getSession();
+        QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
+        QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
+        qomBuilder.setSource(factory.selector("jmix:tagged", SELECTOR_NAME));
+        qomBuilder.andConstraint(factory.descendantNode(SELECTOR_NAME, boundComponent.getPath()));
+
+        // faceting on the TAGS_PROPERTY_NAME field with specified minimum cardinality
+        qomBuilder.getColumns().add(factory.column(SELECTOR_NAME, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
+
+        // limiting the query to the specified maximum number of tags
+        QueryObjectModel qom = qomBuilder.createQOM();
+        qom.setLimit(maxNumberOfTags);
+        return (QueryResultWrapper) qom.execute();
     }
 
 
