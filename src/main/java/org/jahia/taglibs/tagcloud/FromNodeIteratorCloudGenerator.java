@@ -134,7 +134,7 @@ class FromNodeIteratorCloudGenerator implements CloudGenerator {
             for (Tag tag : tags) {
                 if (tagCloud.size() < maxNumberOfTags) {
                     tag.setActionURL(generateActionURL(boundComponent, tag, context));
-                    tagCloud.put(tag.name, tag);
+                    tagCloud.put(tag.getName(), tag);
                 } else {
                     stop = true;
                     break;

@@ -56,7 +56,7 @@ import java.util.*;
 /**
  * @author Christophe Laprun
  */
-class FromFacetsCloudGenerator extends FromQueryCloudGenerator {
+class FromFacetsCloudGenerator extends FromQueryCloudGenerator implements CloudGenerator {
     private final String currentQuery;
 
     FromFacetsCloudGenerator(RenderContext context, String currentQuery) {
@@ -89,13 +89,12 @@ class FromFacetsCloudGenerator extends FromQueryCloudGenerator {
             final String tagUUID = value.getName();
             final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
             final String name = tagNode.getDisplayableName();
-            final Tag tag = new Tag(name, count, tagUUID, PropertyType.WEAKREFERENCE);
+
+            // use specific Tag subclass that adds facet filtering support
+            final FacetedTag tag = new FacetedTag(name, count, tagUUID, PropertyType.WEAKREFERENCE, value);
 
             // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
             totalCardinality += count;
-
-            // facet filtering
-            tag.setFacetValue(value);
 
             // add tag to tag counts
             Set<Tag> associatedTags = tagCounts.get(count);
@@ -114,6 +113,6 @@ class FromFacetsCloudGenerator extends FromQueryCloudGenerator {
     public String generateActionURL(JCRNodeWrapper boundComponent, Tag tag, RenderContext context) throws RepositoryException {
         final String url = context.getURLGenerator().getMainResource();
 
-        return url + "?" + TagCloud.getFacetURLParameterName(boundComponent.getName()) + "=" + Url.encodeUrlParam(Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
+        return url + "?" + TagCloud.getFacetURLParameterName(boundComponent.getName()) + "=" + Url.encodeUrlParam(Functions.getFacetDrillDownUrl(((FacetedTag) tag).getFacetValue(), currentQuery));
     }
 }

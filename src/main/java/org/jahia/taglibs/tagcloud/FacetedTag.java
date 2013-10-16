@@ -39,82 +39,20 @@
  */
 package org.jahia.taglibs.tagcloud;
 
-import javax.jcr.PropertyType;
+import org.apache.solr.client.solrj.response.FacetField;
 
 /**
  * @author Christophe Laprun
  */
-public class Tag {
-    private final int cardinality;
-    private final String name;
-    private final String uuid;
-    private final String type;
-    String actionURL;
-    private static int totalCardinality;
+public class FacetedTag extends Tag {
+    private final FacetField.Count facetValue;
 
-    public Tag(String name, int cardinality, String uuid, int type) {
-        this.name = name;
-        this.cardinality = cardinality;
-        this.uuid = uuid;
-        this.type = PropertyType.nameFromValue(type);
+    public FacetedTag(String name, int cardinality, String uuid, int type, FacetField.Count facetValue) {
+        super(name, cardinality, uuid, type);
+        this.facetValue = facetValue;
     }
 
-    public String getName() {
-        return name;
+    public FacetField.Count getFacetValue() {
+        return facetValue;
     }
-
-    public static void setTotalCardinality(int totalCardinality) {
-        Tag.totalCardinality = totalCardinality;
-    }
-
-    public String getUuid() {
-        return uuid;
-    }
-
-    public int getCardinality() {
-        return cardinality;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public String getActionURL() {
-        return actionURL;
-    }
-
-    public void setActionURL(String actionURL) {
-        this.actionURL = actionURL;
-    }
-
-    public int getWeight() {
-        float weight = totalCardinality > 0 ? 100 * ((float) cardinality / (float) totalCardinality) : 100 / (float) cardinality;
-        return (int) weight;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        Tag tag = (Tag) o;
-
-        if (cardinality != tag.cardinality) return false;
-        if (!name.equals(tag.name)) return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        int result = cardinality;
-        result = 31 * result + name.hashCode();
-        return result;
-    }
-
-    @Override
-    public String toString() {
-        return "Tag (" + name + ',' + cardinality + ')';
-    }
-
 }
