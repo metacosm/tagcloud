@@ -40,6 +40,7 @@
 package org.jahia.modules.tagcloud.taglibs;
 
 import org.apache.commons.collections.KeyValue;
+import org.apache.jackrabbit.util.Text;
 import org.apache.solr.client.solrj.response.FacetField;
 import org.jahia.services.content.JCRNodeWrapper;
 import org.jahia.services.content.JCRSessionWrapper;
@@ -119,12 +120,14 @@ public class TagCloudTag extends AbstractJahiaTag {
 
     public void generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, String currentQuery, RenderContext renderContext) throws RepositoryException {
 
-        QueryResultWrapper allTags = getNodesWithFacets(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags);
+        // applied facets
+        final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
+
+        // query
+        QueryResultWrapper filteredTags = getNodesWithFacets(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
 
         // map recording which unapplied tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
         final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(INVERSE_ORDER_COMPARATOR);
-        // applied facets
-        final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
         // applied tags facets
         final List<KeyValue> appliedTagsValues = appliedFacets.get(TAGS_PROPERTY_NAME);
         Map.Entry<String, List<KeyValue>> appliedTagsFacets = null;
@@ -141,7 +144,7 @@ public class TagCloudTag extends AbstractJahiaTag {
         final String actionURLStart = url + "?" + facetURLParameterName + "=";
 
         // process the query results
-        final FacetField tags = allTags.getFacetField(TAGS_PROPERTY_NAME);
+        final FacetField tags = filteredTags.getFacetField(TAGS_PROPERTY_NAME);
         final List<FacetField.Count> values = tags.getValues();
         int totalCardinality = 0;
         for (FacetField.Count value : values) {
@@ -212,7 +215,7 @@ public class TagCloudTag extends AbstractJahiaTag {
         return start + Url.encodeUrlParam(paramValue);
     }
 
-    private QueryResultWrapper getNodesWithFacets(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags) throws RepositoryException {
+    private QueryResultWrapper getNodesWithFacets(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException {
         // retrieve all jmix:tagged nodes that descending from the bound component path
         final JCRSessionWrapper session = boundComponent.getSession();
         QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
@@ -222,6 +225,16 @@ public class TagCloudTag extends AbstractJahiaTag {
 
         // faceting on the TAGS_PROPERTY_NAME field with specified minimum cardinality
         qomBuilder.getColumns().add(factory.column(SELECTOR_NAME, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
+
+        // repeat applied facets
+        if (appliedFacets != null) {
+            for (Map.Entry<String, List<KeyValue>> appliedFacet : appliedFacets.entrySet()) {
+                for (KeyValue keyValue : appliedFacet.getValue()) {
+                    final String propertyName = "rep:filter(" + Text.escapeIllegalJcrChars(appliedFacet.getKey()) + ")";
+                    qomBuilder.andConstraint(factory.fullTextSearch(SELECTOR_NAME, propertyName, factory.literal(qomBuilder.getValueFactory().createValue(keyValue.getValue().toString()))));
+                }
+            }
+        }
 
         // limiting the query to the specified maximum number of tags
         QueryObjectModel qom = qomBuilder.createQOM();
