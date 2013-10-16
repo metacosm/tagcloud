@@ -37,48 +37,60 @@
  * If you are unsure which license is appropriate for your use,
  * please contact the sales department at sales@jahia.com.
  */
-
 package org.jahia.taglibs.tagcloud;
 
 import org.apache.commons.collections.KeyValue;
 import org.jahia.services.content.JCRNodeWrapper;
+import org.jahia.services.content.JCRSessionWrapper;
+import org.jahia.services.query.QOMBuilder;
+import org.jahia.services.query.QueryResultWrapper;
 import org.jahia.services.render.RenderContext;
-import org.jahia.taglibs.facet.Functions;
-import org.jahia.utils.Url;
 
 import javax.jcr.RepositoryException;
-import java.util.Collections;
+import javax.jcr.query.qom.QueryObjectModel;
+import javax.jcr.query.qom.QueryObjectModelFactory;
 import java.util.List;
 import java.util.Map;
 
 /**
  * @author Christophe Laprun
  */
-public class TagCloud {
-    public static Map<String, Tag> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext, JCRNodeWrapper boundComponent) throws RepositoryException {
-        if (boundComponent != null) {
-            int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
-            int maxNumberOfTags = Integer.parseInt(currentNode.getPropertyAsString("limit"));
+class FromQueryCloudGenerator extends FromNodeIteratorCloudGenerator {
 
-            final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
-            final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter(facetURLParameterName));
+    public static final String SELECTOR_NAME = "tags";
 
-            final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
-
-            final CloudGenerator generator = new FromFacetsCloudGenerator(renderContext, currentQuery);
-            return generator.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
-        }
-
-        return Collections.emptyMap();
+    FromQueryCloudGenerator(RenderContext context) {
+        super(context);
+        hasTagsChecked = true;
     }
 
-    /**
-     * Isolate parameter name in a single spot
-     * @param targetName
-     * @return
-     */
-    static String getFacetURLParameterName(String targetName) {
-        return "N-" + targetName;
+    @Override
+    public Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException {
+        final JCRSessionWrapper session = boundComponent.getSession();
+        QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
+        QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
+
+        qomBuilder.setSource(factory.selector("jmix:tagged", SELECTOR_NAME));
+        qomBuilder.andConstraint(factory.descendantNode(SELECTOR_NAME, boundComponent.getPath()));
+
+        // give subclasses the opportunity to refine the query
+        refineQuery(factory, qomBuilder, minimumCardinalityForInclusion);
+
+        QueryObjectModel qom = qomBuilder.createQOM();
+        qom.setLimit(maxNumberOfTags);
+
+        QueryResultWrapper allTags = (QueryResultWrapper) qom.execute();
+        return generateCloudFrom(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, allTags, appliedFacets);
     }
 
+    protected Map<String, Tag> generateCloudFrom(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, QueryResultWrapper allTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException {
+        // define on which nodes super's implementation will operate
+        nodes = allTags.getNodes();
+
+        return super.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
+    }
+
+    protected void refineQuery(QueryObjectModelFactory factory, QOMBuilder qomBuilder, int minimunCardinalityForInclusion) throws RepositoryException {
+        qomBuilder.andConstraint(factory.propertyExistence(SELECTOR_NAME, TAGS_PROPERTY_NAME));
+    }
 }

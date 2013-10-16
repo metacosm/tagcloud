@@ -37,48 +37,23 @@
  * If you are unsure which license is appropriate for your use,
  * please contact the sales department at sales@jahia.com.
  */
-
 package org.jahia.taglibs.tagcloud;
 
 import org.apache.commons.collections.KeyValue;
 import org.jahia.services.content.JCRNodeWrapper;
 import org.jahia.services.render.RenderContext;
-import org.jahia.taglibs.facet.Functions;
-import org.jahia.utils.Url;
 
 import javax.jcr.RepositoryException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
  * @author Christophe Laprun
  */
-public class TagCloud {
-    public static Map<String, Tag> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext, JCRNodeWrapper boundComponent) throws RepositoryException {
-        if (boundComponent != null) {
-            int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
-            int maxNumberOfTags = Integer.parseInt(currentNode.getPropertyAsString("limit"));
+interface CloudGenerator {
+    String TAGS_PROPERTY_NAME = "j:tags";
 
-            final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
-            final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter(facetURLParameterName));
+    Map<String, Tag> generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, Map<String, List<KeyValue>> appliedFacets) throws RepositoryException;
 
-            final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
-
-            final CloudGenerator generator = new FromFacetsCloudGenerator(renderContext, currentQuery);
-            return generator.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
-        }
-
-        return Collections.emptyMap();
-    }
-
-    /**
-     * Isolate parameter name in a single spot
-     * @param targetName
-     * @return
-     */
-    static String getFacetURLParameterName(String targetName) {
-        return "N-" + targetName;
-    }
-
+    String generateActionURL(JCRNodeWrapper boundComponent, Tag tag, RenderContext context) throws RepositoryException;
 }

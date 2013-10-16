@@ -37,48 +37,90 @@
  * If you are unsure which license is appropriate for your use,
  * please contact the sales department at sales@jahia.com.
  */
-
 package org.jahia.taglibs.tagcloud;
 
-import org.apache.commons.collections.KeyValue;
-import org.jahia.services.content.JCRNodeWrapper;
-import org.jahia.services.render.RenderContext;
-import org.jahia.taglibs.facet.Functions;
-import org.jahia.utils.Url;
+import org.apache.solr.client.solrj.response.FacetField;
 
-import javax.jcr.RepositoryException;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import javax.jcr.PropertyType;
 
 /**
  * @author Christophe Laprun
  */
-public class TagCloud {
-    public static Map<String, Tag> getCloud(JCRNodeWrapper currentNode, RenderContext renderContext, JCRNodeWrapper boundComponent) throws RepositoryException {
-        if (boundComponent != null) {
-            int minimumCardinalityForInclusion = Integer.parseInt(currentNode.getPropertyAsString("j:usageThreshold"));
-            int maxNumberOfTags = Integer.parseInt(currentNode.getPropertyAsString("limit"));
+public class Tag {
+    final int cardinality;
+    final String name;
+    final String uuid;
+    final String type;
+    String actionURL;
+    private FacetField.Count facetValue;
+    private static int totalCardinality;
 
-            final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
-            final String currentQuery = Url.decodeUrlParam(renderContext.getRequest().getParameter(facetURLParameterName));
-
-            final Map<String, List<KeyValue>> appliedFacets = Functions.getAppliedFacetFilters(currentQuery);
-
-            final CloudGenerator generator = new FromFacetsCloudGenerator(renderContext, currentQuery);
-            return generator.generateTagCloud(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
-        }
-
-        return Collections.emptyMap();
+    public Tag(String name, int cardinality, String uuid, int type) {
+        this.name = name;
+        this.cardinality = cardinality;
+        this.uuid = uuid;
+        this.type = PropertyType.nameFromValue(type);
     }
 
-    /**
-     * Isolate parameter name in a single spot
-     * @param targetName
-     * @return
-     */
-    static String getFacetURLParameterName(String targetName) {
-        return "N-" + targetName;
+    public static void setTotalCardinality(int totalCardinality) {
+        Tag.totalCardinality = totalCardinality;
     }
 
+    public String getUuid() {
+        return uuid;
+    }
+
+    public int getCardinality() {
+        return cardinality;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getActionURL() {
+        return actionURL;
+    }
+
+    public void setActionURL(String actionURL) {
+        this.actionURL = actionURL;
+    }
+
+    public int getWeight() {
+        float weight = totalCardinality > 0 ? 100 * ((float) cardinality / (float) totalCardinality) : 100 / (float) cardinality;
+        return (int) weight;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Tag tag = (Tag) o;
+
+        if (cardinality != tag.cardinality) return false;
+        if (!name.equals(tag.name)) return false;
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = cardinality;
+        result = 31 * result + name.hashCode();
+        return result;
+    }
+
+    @Override
+    public String toString() {
+        return "Tag (" + name + ',' + cardinality + ')';
+    }
+
+    public void setFacetValue(FacetField.Count facetValue) {
+        this.facetValue = facetValue;
+    }
+
+    public FacetField.Count getFacetValue() {
+        return facetValue;
+    }
 }

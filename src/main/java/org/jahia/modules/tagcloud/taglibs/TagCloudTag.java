@@ -41,6 +41,7 @@ package org.jahia.modules.tagcloud.taglibs;
 
 import org.jahia.services.content.JCRNodeWrapper;
 import org.jahia.taglibs.AbstractJahiaTag;
+import org.jahia.taglibs.tagcloud.Tag;
 import org.jahia.taglibs.tagcloud.TagCloud;
 import org.jahia.taglibs.uicomponents.Functions;
 
@@ -69,7 +70,7 @@ public class TagCloudTag extends AbstractJahiaTag {
         try {
             final JCRNodeWrapper node = getCurrentResource().getNode();
             final JCRNodeWrapper boundComponent = Functions.getBoundComponent(node, getRenderContext(), "j:bindedComponent");
-            final Map<String, TagCloud.Tag> cloud = TagCloud.getCloud(node, getRenderContext(), boundComponent);
+            final Map<String, Tag> cloud = TagCloud.getCloud(node, getRenderContext(), boundComponent);
             pageContext.setAttribute(cloudVar, cloud, PageContext.REQUEST_SCOPE);
 
             if (target != null && !target.isEmpty()) {
