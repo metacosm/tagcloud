@@ -1,0 +1,27 @@
+ul.activeTags {
+    list-style: none;
+}
+
+ul.activeTags li {
+    border: 1px solid #cccccc;
+    border-radius: 5px;
+    text-align: center;
+    margin: .1em;
+    padding: .2em;
+    padding-left: 20px;
+    display: inline;
+    background: #eeeeee url(../icons/trash.png) no-repeat left;
+}
+
+ul.activeTags li:hover {
+    box-shadow: 0.2em 0.2em 0.2em #666;
+    text-shadow: 0.05em 0.05em 0.05em #333;
+}
+
+ul.activeTags li a {
+    text-decoration: none;
+}
+
+ul.activeTags li a:hover {
+    text-decoration: none;
+}

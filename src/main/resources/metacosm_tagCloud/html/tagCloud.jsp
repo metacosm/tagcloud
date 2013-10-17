@@ -30,9 +30,10 @@
 <div id="tagcloud${targetId}" class="tagcloud">
 
     <c:if test="${not empty applied}">
-        <ul>
+        <p><fmt:message key="label.tagcloud.active"/></p>
+        <ul class="activeTags">
             <c:forEach items="${applied}" var="tag">
-                <li><a href="${tag.deleteActionURL}">${tag.name}</a></li>
+                <li><a href="${tag.deleteActionURL}" title='<fmt:message key="label.tagcloud.remove"><fmt:param value="${tag.name}"/></fmt:message>'>${tag.name}</a></li>
             </c:forEach>
         </ul>
     </c:if>
@@ -48,10 +49,13 @@
                             outlineMethod: 'colour',
                             outlineColour: '#ccc',
                             weight: 'true', // use weighted mode to display tags
-                            weightMode: 'both', // use both color and size to display weight
+                            weightMode: 'size', // use both color and size to display weight
                             weightFrom: 'data-weight', // tagcanvas derives how tags are weighted based on the value of an attribute (put on anchor elements) specified by weightFrom option
+                            weightSize: 1.25,
                             maxSpeed: 0.03,
-                            depth: 0.75
+                            depth: 0.75,
+                            shadowBlur: 2,
+                            shadowOffset: [1, 2]
                         }, 'tags${targetId}')) { // this second parameter must be the id of the div containing the tags if they're not directly put within the canvas element
                             // TagCanvas failed to load
                             $('#tagcloudCanvasContainer${targetId}').hide();
@@ -83,7 +87,7 @@
 
         </c:when>
         <c:otherwise>
-            <span class="notaggeditem${targetId}"><fmt:message key="label.tags.notag"/></span>
+            <span class="notaggeditem${targetId}"><fmt:message key="label.tagcloud.notag"/></span>
         </c:otherwise>
     </c:choose>
 </div>
