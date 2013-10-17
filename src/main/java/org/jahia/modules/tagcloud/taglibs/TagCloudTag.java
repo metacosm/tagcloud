@@ -97,8 +97,8 @@ public class TagCloudTag extends AbstractJahiaTag {
             if (boundComponent != null) {
 
                 // get component configuration
-                int minimumCardinalityForInclusion = Integer.parseInt(node.getPropertyAsString("j:usageThreshold"));
-                int maxNumberOfTags = Integer.parseInt(node.getPropertyAsString("limit"));
+                int minimumCardinalityForInclusion = Integer.parseInt(node.getPropertyAsString("minInclusionCardinality"));
+                int maxNumberOfTags = Integer.parseInt(node.getPropertyAsString("maxTagNumber"));
 
                 // extract URL parameters
                 final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
