@@ -30,12 +30,14 @@
 <div id="tagcloud${targetId}" class="tagcloud">
 
     <c:if test="${not empty applied}">
-        <p><fmt:message key="label.tagcloud.active"/></p>
-        <ul class="activeTags">
-            <c:forEach items="${applied}" var="tag">
-                <li><a href="${tag.deleteActionURL}" title='<fmt:message key="label.tagcloud.remove"><fmt:param value="${tag.name}"/></fmt:message>'>${tag.name}</a></li>
-            </c:forEach>
-        </ul>
+        <div class="activeTagsContainer">
+            <p><fmt:message key="label.tagcloud.active"/></p>
+            <ul class="activeTags">
+                <c:forEach items="${applied}" var="tag">
+                    <li><a href="${tag.deleteActionURL}" title='<fmt:message key="label.tagcloud.remove"><fmt:param value="${tag.name}"/></fmt:message>'>${tag.name}</a></li>
+                </c:forEach>
+            </ul>
+        </div>
     </c:if>
 
     <c:choose>
@@ -79,7 +81,7 @@
             <div id="tags${targetId}">
                 <ul>
                     <c:forEach items="${tagcloud}" var="tag">
-                    <li id="tag-${fn:replace(tag.key,' ','-')}" class="tag"><a href='${tag.value.actionURL}' data-weight='${tag.value.weight}'>${fn:escapeXml(tag.key)}</a></li>
+                        <li id="tag-${fn:replace(tag.key,' ','-')}" class="tag"><a href='${tag.value.actionURL}' data-weight='${tag.value.weight}'>${fn:escapeXml(tag.key)}</a></li>
                     </c:forEach>
                 </ul>
             </div>

@@ -1,5 +1,12 @@
+.tagcloud {
+    border: 1px solid #cccccc;
+    border-radius: .2em;
+    padding: .2em;
+}
+
 ul.activeTags {
     list-style: none;
+    margin: 0;
 }
 
 ul.activeTags li {
@@ -7,15 +14,14 @@ ul.activeTags li {
     border-radius: 5px;
     text-align: center;
     margin: .1em;
-    padding: .2em;
-    padding-left: 20px;
+    padding: .2em .2em .2em 20px;
     display: inline;
-    background: #eeeeee url(../icons/trash.png) no-repeat left;
+    background: #fefefe url(../icons/trash.png) no-repeat left;
+    font-size: 90%;
 }
 
 ul.activeTags li:hover {
     box-shadow: 0.2em 0.2em 0.2em #666;
-    text-shadow: 0.05em 0.05em 0.05em #333;
 }
 
 ul.activeTags li a {
@@ -24,4 +30,14 @@ ul.activeTags li a {
 
 ul.activeTags li a:hover {
     text-decoration: none;
+}
+
+.activeTagsContainer {
+    border-left: .3em solid #ccc;
+    padding: .3em;
+}
+
+.activeTagsContainer p {
+    font-weight: bold;
+    margin: 0 0 .1em;
 }
