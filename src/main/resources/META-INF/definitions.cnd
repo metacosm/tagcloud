@@ -5,6 +5,3 @@
 [metacosm:tagCloud] > jnt:content, mix:title, jmix:tagsContent, jmix:bindedComponent
  - j:usageThreshold (long) = 1 indexed=no
  - limit (long) = 50 indexed=no
-
-[metacosm:tagCondition] > jnt:condition
- - tag (string) indexed=no
