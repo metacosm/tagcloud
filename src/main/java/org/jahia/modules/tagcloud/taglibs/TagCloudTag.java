@@ -181,7 +181,7 @@ public class TagCloudTag extends AbstractJahiaTag {
                     }
                 }
 
-                tag.setDeleteActionURL(getActionURL(actionURLStart, Url.encodeUrlParam(Functions.getDeleteFacetUrl(appliedTagsFacets, current, currentQuery))));
+                tag.setDeleteActionURL(getActionURL(actionURLStart, Functions.getDeleteFacetUrl(appliedTagsFacets, current, currentQuery)));
                 appliedTagsList.add(tag);
             }
         }
@@ -197,7 +197,7 @@ public class TagCloudTag extends AbstractJahiaTag {
 
             for (Tag tag : tags1) {
                 if (tagCloud.size() < maxNumberOfTags) {
-                    String result = getActionURL(actionURLStart, (Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery)));
+                    String result = getActionURL(actionURLStart, Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
                     tag.setActionURL(result);
                     tagCloud.put(tag.getName(), tag);
                 } else {
