@@ -16,7 +16,7 @@ ul.activeTags li {
     margin: .1em;
     padding: .2em .2em .2em 20px;
     display: inline;
-    background: #fefefe url(../icons/trash.png) no-repeat left;
+    background: #fefefe url(../icons/delete.png) no-repeat left;
     font-size: 90%;
 }
 
