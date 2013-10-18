@@ -130,89 +130,92 @@ public class TagCloudTag extends AbstractJahiaTag {
         // query
         QueryResultWrapper filteredTags = getNodesWithFacets(boundComponent, minimumCardinalityForInclusion, maxNumberOfTags, appliedFacets);
 
-        // map recording which unapplied tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
-        final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(INVERSE_ORDER_COMPARATOR);
-        // applied tags facets
-        final List<KeyValue> appliedTagsValues = appliedFacets.get(TAGS_PROPERTY_NAME);
-        Map.Entry<String, List<KeyValue>> appliedTagsFacets = null;
-        // list of applied tags
-        List<Tag> appliedTagsList = Collections.emptyList();
-        if (appliedTagsValues != null) {
-            appliedTagsFacets = new StringListEntry(TAGS_PROPERTY_NAME, appliedTagsValues);
-            appliedTagsList = new ArrayList<Tag>(appliedTagsValues.size());
-        }
+        if (!filteredTags.isFacetResultsEmpty()) {
+            // map recording which unapplied tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
+            final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(INVERSE_ORDER_COMPARATOR);
+            // applied tags facets
+            final List<KeyValue> appliedTagsValues = appliedFacets.get(TAGS_PROPERTY_NAME);
+            Map.Entry<String, List<KeyValue>> appliedTagsFacets = null;
+            // list of applied tags
+            List<Tag> appliedTagsList = Collections.emptyList();
+            if (appliedTagsValues != null) {
+                appliedTagsFacets = new StringListEntry(TAGS_PROPERTY_NAME, appliedTagsValues);
+                appliedTagsList = new ArrayList<Tag>(appliedTagsValues.size());
+            }
 
-        // action URL start
-        final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
-        final String url = renderContext.getURLGenerator().getMainResource();
-        final String actionURLStart = url + "?" + facetURLParameterName + "=";
+            // action URL start
+            final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
+            final String url = renderContext.getURLGenerator().getMainResource();
+            final String actionURLStart = url + "?" + facetURLParameterName + "=";
 
-        // process the query results
-        final FacetField tags = filteredTags.getFacetField(TAGS_PROPERTY_NAME);
-        final List<FacetField.Count> values = tags.getValues();
-        int totalCardinality = 0;
-        for (FacetField.Count value : values) {
-            // facet query should only return tags with a cardinality greater than the one we specified
-            final int count = (int) value.getCount();
+            // process the query results
+            final FacetField tags = filteredTags.getFacetField(TAGS_PROPERTY_NAME);
+            final List<FacetField.Count> values = tags.getValues();
+            int totalCardinality = 0;
+            for (FacetField.Count value : values) {
+                // facet query should only return tags with a cardinality greater than the one we specified
+                final int count = (int) value.getCount();
 
-            // facets return value of the j:tags property which is a weak reference to a node so we need to load it to get its name
-            final String tagUUID = value.getName();
-            final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
-            final String name = tagNode.getDisplayableName();
+                // facets return value of the j:tags property which is a weak reference to a node so we need to load it to get its name
+                final String tagUUID = value.getName();
+                final JCRNodeWrapper tagNode = boundComponent.getSession().getNodeByUUID(tagUUID);
+                final String name = tagNode.getDisplayableName();
 
-            // create tag
-            final Tag tag = new Tag(name, count, tagUUID, value);
+                // create tag
+                final Tag tag = new Tag(name, count, tagUUID, value);
 
-            if (!Functions.isFacetValueApplied(value, appliedFacets)) {
-                // only add tag to cloud if it's not applied
+                if (!Functions.isFacetValueApplied(value, appliedFacets)) {
+                    // only add tag to cloud if it's not applied
 
-                // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
-                totalCardinality += count;
+                    // increase totalCardinality with the current tag's count, this is used to compute the tag's weight in the cloud
+                    totalCardinality += count;
 
-                // add tag to tag counts
-                Set<Tag> associatedTags = tagCounts.get(count);
-                if (associatedTags == null) {
-                    associatedTags = new HashSet<Tag>();
-                    tagCounts.put(count, associatedTags);
-                }
-                associatedTags.add(tag);
-            } else {
-                // get KeyValue for current tag
-                KeyValue current = null;
-                for (KeyValue tagsValue : appliedTagsValues) {
-                    if (tagUUID.equals(tagsValue.getKey())) {
-                        current = tagsValue;
+                    // add tag to tag counts
+                    Set<Tag> associatedTags = tagCounts.get(count);
+                    if (associatedTags == null) {
+                        associatedTags = new HashSet<Tag>();
+                        tagCounts.put(count, associatedTags);
                     }
-                }
-
-                tag.setDeleteActionURL(getActionURL(actionURLStart, Functions.getDeleteFacetUrl(appliedTagsFacets, current, currentQuery)));
-                appliedTagsList.add(tag);
-            }
-        }
-        Tag.setTotalCardinality(totalCardinality);
-
-        // extract only the maxNumberOfTags most numerous tags
-        final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
-        boolean stop = false;
-        for (Set<Tag> tags1 : tagCounts.values()) {
-            if (stop) {
-                break;
-            }
-
-            for (Tag tag : tags1) {
-                if (tagCloud.size() < maxNumberOfTags) {
-                    String result = getActionURL(actionURLStart, Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
-                    tag.setActionURL(result);
-                    tagCloud.put(tag.getName(), tag);
+                    associatedTags.add(tag);
                 } else {
-                    stop = true;
+                    // get KeyValue for current tag
+                    KeyValue current = null;
+                    for (KeyValue tagsValue : appliedTagsValues) {
+                        if (tagUUID.equals(tagsValue.getKey())) {
+                            current = tagsValue;
+                        }
+                    }
+
+                    tag.setDeleteActionURL(getActionURL(actionURLStart, Functions.getDeleteFacetUrl(appliedTagsFacets, current, currentQuery)));
+                    appliedTagsList.add(tag);
+                }
+            }
+            Tag.setTotalCardinality(totalCardinality);
+
+            // extract only the maxNumberOfTags most numerous tags
+            final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
+            boolean stop = false;
+            for (Set<Tag> tags1 : tagCounts.values()) {
+                if (stop) {
                     break;
                 }
-            }
-        }
 
-        pageContext.setAttribute(cloudVar, tagCloud, PageContext.REQUEST_SCOPE);
-        pageContext.setAttribute(appliedTags, appliedTagsList, PageContext.REQUEST_SCOPE);
+                for (Tag tag : tags1) {
+                    if (tagCloud.size() < maxNumberOfTags) {
+                        String result = getActionURL(actionURLStart, Functions.getFacetDrillDownUrl(tag.getFacetValue(), currentQuery));
+                        tag.setActionURL(result);
+                        tagCloud.put(tag.getName(), tag);
+                    } else {
+                        stop = true;
+                        break;
+                    }
+                }
+            }
+
+            // put cloud and applied tags in their respective page context variables
+            pageContext.setAttribute(cloudVar, tagCloud, PageContext.REQUEST_SCOPE);
+            pageContext.setAttribute(appliedTags, appliedTagsList, PageContext.REQUEST_SCOPE);
+        }
     }
 
     private String getActionURL(String start, String paramValue) {
