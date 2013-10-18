@@ -99,6 +99,10 @@ public class TagCloudTag extends AbstractJahiaTag {
                 // get component configuration
                 int minimumCardinalityForInclusion = Integer.parseInt(node.getPropertyAsString("minInclusionCardinality"));
                 int maxNumberOfTags = Integer.parseInt(node.getPropertyAsString("maxTagNumber"));
+                String highlightColor = node.getPropertyAsString("highlightColor");
+
+                // set highlight color in page context so that its value can be used in the tagcanvas function configuration
+                pageContext.setAttribute("highlightColor", highlightColor, PageContext.REQUEST_SCOPE);
 
                 // extract URL parameters
                 final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());
