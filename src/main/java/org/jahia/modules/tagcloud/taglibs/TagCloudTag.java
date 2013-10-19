@@ -100,9 +100,13 @@ public class TagCloudTag extends AbstractJahiaTag {
                 int minimumCardinalityForInclusion = Integer.parseInt(node.getPropertyAsString("minInclusionCardinality"));
                 int maxNumberOfTags = Integer.parseInt(node.getPropertyAsString("maxTagNumber"));
                 String highlightColor = node.getPropertyAsString("highlightColor");
+                boolean use3D = Boolean.parseBoolean(node.getPropertyAsString("use3D"));
 
                 // set highlight color in page context so that its value can be used in the tagcanvas function configuration
                 pageContext.setAttribute("highlightColor", highlightColor, PageContext.REQUEST_SCOPE);
+
+                // whether we should use the 3D tag cloud plugin or the simple one
+                pageContext.setAttribute("use3D", use3D, PageContext.REQUEST_SCOPE);
 
                 // extract URL parameters
                 final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());

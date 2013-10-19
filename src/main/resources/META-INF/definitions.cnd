@@ -6,3 +6,4 @@
  - minInclusionCardinality (long) = 1 indexed=no
  - maxTagNumber (long) = 50 indexed=no
  - highlightColor (string,color) = '#ccc' indexed=no
+ - use3D (boolean) = false indexed=no
