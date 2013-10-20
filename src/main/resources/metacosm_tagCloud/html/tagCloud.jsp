@@ -59,7 +59,7 @@
                             $(document).ready(function () {
                                 if (!$('#tagcloudCanvas${targetId}').tagcanvas({
                                     outlineMethod: 'colour',
-                                    outlineColour: '${highlightColor}', // tagcloud tag retrieves this value from the node configuration and puts it in the page context
+                                    outlineColour: '#cde',
                                     weight: 'true', // use weighted mode to display tags
                                     weightMode: 'size', // use both color and size to display weight
                                     weightFrom: 'rel', // tagcanvas derives how tags are weighted based on the value of an attribute (put on anchor elements) specified by weightFrom option
