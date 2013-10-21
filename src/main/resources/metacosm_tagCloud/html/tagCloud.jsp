@@ -76,6 +76,7 @@
                         </script>
                     </c:when>
                     <c:otherwise>
+                        <%-- Flat cloud is generated using jQuery plugin available at https://github.com/addywaddy/jquery.tagcloud.js --%>
                         <script type="text/javascript">
                             $.fn.tagcloud.defaults = {
                                 size: {start: 14, end: 18, unit: 'pt'},
