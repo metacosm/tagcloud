@@ -64,7 +64,7 @@ import java.util.*;
  * @author Christophe Laprun
  */
 public class TagCloudTag extends AbstractJahiaTag {
-    private static final String SELECTOR_NAME = "tags";
+    private static final String NODETYPE_NAME = "jmix:tagged";
     private static final String TAGS_PROPERTY_NAME = "j:tags";
     public static final Comparator<Integer> INVERSE_ORDER_COMPARATOR = new Comparator<Integer>() {
         @Override
@@ -233,40 +233,40 @@ public class TagCloudTag extends AbstractJahiaTag {
         QueryObjectModelFactory factory = session.getWorkspace().getQueryManager().getQOMFactory();
 
         QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
-        String selectorName = SELECTOR_NAME;
         boolean hadExisting = false;
 
-        // check whether we already have a query running in the page (it's the case if the bound component is of type jnt:query
-        final int scope = pageContext.getAttributesScope("moduleMap");
-        if (scope != 0) {
-            final Map moduleMap = (Map) pageContext.getAttribute("moduleMap", scope);
-            if (moduleMap != null) {
-                final Object listQuery = moduleMap.get("listQuery");
-                if (listQuery instanceof QueryObjectModel) {
-                    QueryObjectModel existing = (QueryObjectModel) listQuery;
-                    final Selector selector = (Selector) existing.getSource();
-                    selectorName = selector.getSelectorName();
-                    qomBuilder.setSource(selector);
-                    qomBuilder.andConstraint(existing.getConstraint());
-                    hadExisting = true;
+        // handle case where the bound component is a jnt:query
+        if (boundComponent.isNodeType("jnt:query")) {
+            final int scope = pageContext.getAttributesScope("moduleMap");
+            if (scope != 0) {
+                final Map moduleMap = (Map) pageContext.getAttribute("moduleMap", scope);
+                if (moduleMap != null) {
+                    final Object listQuery = moduleMap.get("listQuery");
+                    if (listQuery instanceof QueryObjectModel) {
+                        QueryObjectModel existing = (QueryObjectModel) listQuery;
+                        final Selector selector = (Selector) existing.getSource();
+                        qomBuilder.setSource(selector);
+                        qomBuilder.andConstraint(existing.getConstraint());
+                        hadExisting = true;
+                    }
                 }
             }
         }
 
         if (!hadExisting) {
-            qomBuilder.setSource(factory.selector("jmix:tagged", selectorName));
-            qomBuilder.andConstraint(factory.descendantNode(selectorName, boundComponent.getPath()));
+            qomBuilder.setSource(factory.selector(NODETYPE_NAME, NODETYPE_NAME));
+            qomBuilder.andConstraint(factory.descendantNode(NODETYPE_NAME, boundComponent.getPath()));
         }
 
         // faceting on the TAGS_PROPERTY_NAME field with specified minimum cardinality
-        qomBuilder.getColumns().add(factory.column(selectorName, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
+        qomBuilder.getColumns().add(factory.column(NODETYPE_NAME, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
 
         // repeat applied facets
         if (appliedFacets != null) {
             for (Map.Entry<String, List<KeyValue>> appliedFacet : appliedFacets.entrySet()) {
                 for (KeyValue keyValue : appliedFacet.getValue()) {
                     final String propertyName = "rep:filter(" + Text.escapeIllegalJcrChars(appliedFacet.getKey()) + ")";
-                    qomBuilder.andConstraint(factory.fullTextSearch(selectorName, propertyName, factory.literal(qomBuilder.getValueFactory().createValue(keyValue.getValue().toString()))));
+                    qomBuilder.andConstraint(factory.fullTextSearch(NODETYPE_NAME, propertyName, factory.literal(qomBuilder.getValueFactory().createValue(keyValue.getValue().toString()))));
                 }
             }
         }
