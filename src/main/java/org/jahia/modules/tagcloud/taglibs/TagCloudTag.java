@@ -108,10 +108,6 @@ public class TagCloudTag extends AbstractJahiaTag {
                 // get component configuration
                 int minimumCardinalityForInclusion = Integer.parseInt(node.getPropertyAsString("minInclusionCardinality"));
                 int maxNumberOfTags = Integer.parseInt(node.getPropertyAsString("maxTagNumber"));
-                boolean use3D = Boolean.parseBoolean(node.getPropertyAsString("use3D"));
-
-                // whether we should use the 3D tag cloud plugin or the simple one
-                pageContext.setAttribute("use3D", use3D, PageContext.REQUEST_SCOPE);
 
                 // extract URL parameters
                 final String facetURLParameterName = getFacetURLParameterName(boundComponent.getName());

@@ -23,7 +23,8 @@
 <%-- Creates the tag cloud and put the resulting data in the tagcloud variable, applied attribute contains the list of applied tags, target attribute specifies the name of the component on which the tag cloud will operate --%>
 <tagcloud:tagcloud cloud="tagcloud" appliedTags="applied" target="boundComponent"/>
 
-<template:addResources type="javascript" resources="jquery.tagcloud.js"/>
+<template:addResources type="javascript" resources="jquery.tagcanvas.min.js"/>
+<template:addResources type="javascript" resources="excanvas.js" condition="if lt IE 9"/>
 
 <c:set var="targetId" value="${boundComponent.identifier}"/>
 
@@ -44,18 +45,34 @@
         <c:when test="${not empty tagcloud}">
 
             <template:addResources type="inlinejavascript" key="tagCloud">
-                <%-- Flat cloud is generated using jQuery plugin available at https://github.com/addywaddy/jquery.tagcloud.js --%>
+                <%-- 3D Cloud is generated using jQuery plugin available under LGPL 3 license at http://www.goat1000.com/tagcanvas.php --%>
                 <script type="text/javascript">
-                    $.fn.tagcloud.defaults = {
-                        size: {start: 1, end: 2, unit: 'em'},
-                        color: {start: '#cde', end: '#f52'}
-                    };
-
-                    $(function () {
-                        $('#tags${targetId} a').tagcloud();
+                    $(document).ready(function () {
+                        if (!$('#tagcloudCanvas${targetId}').tagcanvas({
+                            outlineMethod: 'colour',
+                            outlineColour: '#cde',
+                            weight: 'true', // use weighted mode to display tags
+                            weightMode: 'size', // use both color and size to display weight
+                            weightFrom: 'rel', // tagcanvas derives how tags are weighted based on the value of an attribute (put on anchor elements) specified by weightFrom option
+                            weightSize: 1.25,
+                            maxSpeed: 0.03,
+                            depth: 0.75,
+                            shadowBlur: 2,
+                            shadowOffset: [1, 2]
+                        }, 'tags${targetId}')) { // this second parameter must be the id of the div containing the tags if they're not directly put within the canvas element
+                            // TagCanvas failed to load
+                            $('#tagcloudCanvasContainer${targetId}').hide();
+                        }
                     });
                 </script>
             </template:addResources>
+
+            <%-- The tagcloud plugin uses the canvas contained in this div to display tags in 3D --%>
+            <div id="tagcloudCanvasContainer${targetId}">
+                <canvas width="280" height="200" id="tagcloudCanvas${targetId}">
+                    <p>In Internet Explorer versions up to 8, things inside the canvas are inaccessible! Content will be replaced in browsers supporting canvas tag.</p>
+                </canvas>
+            </div>
 
             <%--
             Ideally, we would put the tags within the canvas element and they would be replaced by the plugin directly. However, this method doesn't work on IE < 9 so we need to put the tags in a separate div that will be hidden by the
