@@ -234,39 +234,38 @@ public class TagCloudTag extends AbstractJahiaTag {
 
         QOMBuilder qomBuilder = new QOMBuilder(factory, session.getValueFactory());
         boolean hadExisting = false;
+        String selectorName = NODETYPE_NAME;
 
-        // handle case where the bound component is a jnt:query
-        if (boundComponent.isNodeType("jnt:query")) {
-            final int scope = pageContext.getAttributesScope("moduleMap");
-            if (scope != 0) {
-                final Map moduleMap = (Map) pageContext.getAttribute("moduleMap", scope);
-                if (moduleMap != null) {
-                    final Object listQuery = moduleMap.get("listQuery");
-                    if (listQuery instanceof QueryObjectModel) {
-                        QueryObjectModel existing = (QueryObjectModel) listQuery;
-                        final Selector selector = (Selector) existing.getSource();
-                        qomBuilder.setSource(selector);
-                        qomBuilder.andConstraint(existing.getConstraint());
-                        hadExisting = true;
-                    }
+        final int scope = pageContext.getAttributesScope("moduleMap");
+        if (scope != 0) {
+            final Map moduleMap = (Map) pageContext.getAttribute("moduleMap", scope);
+            if (moduleMap != null) {
+                final Object listQuery = moduleMap.get("listQuery");
+                if (listQuery instanceof QueryObjectModel) {
+                    QueryObjectModel existing = (QueryObjectModel) listQuery;
+                    final Selector selector = (Selector) existing.getSource();
+                    selectorName = selector.getSelectorName();
+                    qomBuilder.setSource(selector);
+                    qomBuilder.andConstraint(existing.getConstraint());
+                    hadExisting = true;
                 }
             }
         }
 
         if (!hadExisting) {
-            qomBuilder.setSource(factory.selector(NODETYPE_NAME, NODETYPE_NAME));
-            qomBuilder.andConstraint(factory.descendantNode(NODETYPE_NAME, boundComponent.getPath()));
+            qomBuilder.setSource(factory.selector(NODETYPE_NAME, selectorName));
+            qomBuilder.andConstraint(factory.descendantNode(selectorName, boundComponent.getPath()));
         }
 
         // faceting on the TAGS_PROPERTY_NAME field with specified minimum cardinality
-        qomBuilder.getColumns().add(factory.column(NODETYPE_NAME, TAGS_PROPERTY_NAME, "rep:facet(facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
+        qomBuilder.getColumns().add(factory.column(selectorName, TAGS_PROPERTY_NAME, "rep:facet(facet.nodetype=" + NODETYPE_NAME + "&facet.mincount=" + minimumCardinalityForInclusion + "&key=1)"));
 
         // repeat applied facets
         if (appliedFacets != null) {
             for (Map.Entry<String, List<KeyValue>> appliedFacet : appliedFacets.entrySet()) {
                 for (KeyValue keyValue : appliedFacet.getValue()) {
                     final String propertyName = "rep:filter(" + Text.escapeIllegalJcrChars(appliedFacet.getKey()) + ")";
-                    qomBuilder.andConstraint(factory.fullTextSearch(NODETYPE_NAME, propertyName, factory.literal(qomBuilder.getValueFactory().createValue(keyValue.getValue().toString()))));
+                    qomBuilder.andConstraint(factory.fullTextSearch(selectorName, propertyName, factory.literal(qomBuilder.getValueFactory().createValue(keyValue.getValue().toString()))));
                 }
             }
         }
