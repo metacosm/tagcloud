@@ -25,6 +25,8 @@
 
 <template:addResources type="javascript" resources="jquery.tagcloud.js"/>
 
+<template:addCacheDependency flushOnPathMatchingRegexp="${boundComponent.path}/.*"/>
+
 <c:set var="targetId" value="${boundComponent.identifier}"/>
 
 <div id="tagcloud${targetId}" class="tagcloud">
