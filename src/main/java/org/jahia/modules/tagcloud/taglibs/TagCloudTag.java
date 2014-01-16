@@ -181,6 +181,7 @@ public class TagCloudTag extends AbstractJahiaTag {
                     for (KeyValue tagsValue : appliedTagsValues) {
                         if (tagUUID.equals(tagsValue.getKey())) {
                             current = tagsValue;
+                            break;
                         }
                     }
 
