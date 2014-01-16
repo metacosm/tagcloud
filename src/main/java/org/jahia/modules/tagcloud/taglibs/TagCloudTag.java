@@ -66,13 +66,6 @@ import java.util.*;
  * @author Christophe Laprun
  */
 public class TagCloudTag extends AbstractJahiaTag {
-    public static final Comparator<Integer> INVERSE_ORDER_COMPARATOR = new Comparator<Integer>() {
-        @Override
-        public int compare(Integer o1, Integer o2) {
-            return o2.compareTo(o1);
-        }
-    };
-
     private String cloudVar;
     private String target;
     private String appliedTags;
@@ -137,7 +130,7 @@ public class TagCloudTag extends AbstractJahiaTag {
 
         if (!filteredTags.isFacetResultsEmpty()) {
             // map recording which unapplied tags have which cardinality, sorted in reverse cardinality order (most numerous tags first, being more important)
-            final SortedMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>(INVERSE_ORDER_COMPARATOR);
+            final NavigableMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>();
             // applied tags facets
             final List<KeyValue> appliedTagsValues = appliedFacets.get(Constants.TAGS);
             Map.Entry<String, List<KeyValue>> appliedTagsFacets = null;
@@ -200,7 +193,7 @@ public class TagCloudTag extends AbstractJahiaTag {
             // extract only the maxNumberOfTags most numerous tags
             final Map<String, Tag> tagCloud = new LinkedHashMap<String, Tag>(maxNumberOfTags);
             boolean stop = false;
-            for (Set<Tag> tags1 : tagCounts.values()) {
+            for (Set<Tag> tags1 : tagCounts.descendingMap().values()) {
                 if (stop) {
                     break;
                 }
