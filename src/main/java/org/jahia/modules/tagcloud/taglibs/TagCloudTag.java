@@ -42,6 +42,7 @@ package org.jahia.modules.tagcloud.taglibs;
 import org.apache.commons.collections.KeyValue;
 import org.apache.jackrabbit.util.Text;
 import org.apache.solr.client.solrj.response.FacetField;
+import org.jahia.modules.tagcloud.model.Tag;
 import org.jahia.services.content.JCRNodeWrapper;
 import org.jahia.services.content.JCRSessionWrapper;
 import org.jahia.services.query.QOMBuilder;

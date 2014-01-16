@@ -37,7 +37,7 @@
  * If you are unsure which license is appropriate for your use,
  * please contact the sales department at sales@jahia.com.
  */
-package org.jahia.modules.tagcloud.taglibs;
+package org.jahia.modules.tagcloud.model;
 
 import org.apache.solr.client.solrj.response.FacetField;
 
