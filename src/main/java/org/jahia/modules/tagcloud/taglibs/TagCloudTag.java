@@ -63,6 +63,9 @@ import javax.servlet.jsp.PageContext;
 import java.util.*;
 
 /**
+ * Creates the tag cloud and put the resulting data in the variable specified by the <code>cloud</code> attribute, <code>applied</code> attribute contains the list of applied tags,
+ * <code>target</code> attribute specifies the name of the component on which the tag cloud will operate.
+ *
  * @author Christophe Laprun
  */
 public class TagCloudTag extends AbstractJahiaTag {
@@ -120,6 +123,18 @@ public class TagCloudTag extends AbstractJahiaTag {
         return SKIP_BODY;
     }
 
+    /**
+     * Generates the tag cloud associated with the specified bound component, including only tags with a cardinality above the specified minimum cardinality for inclusion, up to
+     * the specified maximum number of tags.
+     *
+     * @param boundComponent                 the component for which we want to generate a tag cloud.
+     * @param minimumCardinalityForInclusion minimum cardinality (i.e. number of tagged elements) for a tag to be included in the tag cloud
+     * @param maxNumberOfTags                maximum number of tags included in the cloud, keeping most numerous tags first (i.e. tags with lower cardinality will be excluded from
+     *                                       the cloud first)
+     * @param currentQuery                   the currently applied facet query
+     * @param renderContext                  the {@link org.jahia.services.render.RenderContext} in which this tag cloud is being generated
+     * @throws RepositoryException if something went wrong accessing the JCR repository while processing the bound component's tags
+     */
     public void generateTagCloud(JCRNodeWrapper boundComponent, int minimumCardinalityForInclusion, int maxNumberOfTags, String currentQuery, RenderContext renderContext) throws RepositoryException {
 
         // applied facets
