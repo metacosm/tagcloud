@@ -148,11 +148,9 @@ public class TagCloudTag extends AbstractJahiaTag {
             final NavigableMap<Integer, Set<Tag>> tagCounts = new TreeMap<Integer, Set<Tag>>();
             // applied tags facets
             final List<KeyValue> appliedTagsValues = appliedFacets.get(Constants.TAGS);
-            Map.Entry<String, List<KeyValue>> appliedTagsFacets = null;
             // list of applied tags
             List<Tag> appliedTagsList = Collections.emptyList();
             if (appliedTagsValues != null) {
-                appliedTagsFacets = new StringListEntry(Constants.TAGS, appliedTagsValues);
                 appliedTagsList = new ArrayList<Tag>(appliedTagsValues.size());
             }
 
@@ -200,7 +198,7 @@ public class TagCloudTag extends AbstractJahiaTag {
                         }
                     }
 
-                    tag.setDeleteActionURL(getActionURL(actionURLStart, Functions.getDeleteFacetUrl(appliedTagsFacets, current, currentQuery)));
+                    tag.setDeleteActionURL(getActionURL(actionURLStart, Functions.getDeleteFacetUrl(current, currentQuery)));
                     appliedTagsList.add(tag);
                 }
             }
@@ -294,30 +292,5 @@ public class TagCloudTag extends AbstractJahiaTag {
      */
     static String getFacetURLParameterName(String targetName) {
         return "N-" + targetName;
-    }
-
-    private static class StringListEntry implements Map.Entry<String, List<KeyValue>> {
-        private String key;
-        private List<KeyValue> value;
-
-        public StringListEntry(String key, List<KeyValue> value) {
-            this.key = key;
-            this.value = value;
-        }
-
-        @Override
-        public String getKey() {
-            return key;
-        }
-
-        @Override
-        public List<KeyValue> getValue() {
-            return value;
-        }
-
-        @Override
-        public List<KeyValue> setValue(List<KeyValue> value) {
-            throw new UnsupportedOperationException();
-        }
     }
 }
